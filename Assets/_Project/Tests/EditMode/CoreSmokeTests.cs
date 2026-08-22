@@ -22,6 +22,8 @@ namespace OneDayThermostat.Tests
                 LocalizationCatalogProvidesFallbackAndRejectsDuplicateKeys();
                 ProgressionQueuesPlatformSyncWithoutDuplicateUnlocks();
                 CanonicalScenarioCatalogMeetsFairnessContract();
+                AuthorableScenarioRequiresCompleteMaterialContract();
+                ScriptedDayFixtureMatchesAuthoritativeSequence();
                 AccessibilityProfileIsBoundedAndNonAuthoritative();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
@@ -72,6 +74,52 @@ namespace OneDayThermostat.Tests
                 Assert(scenario.IsFair(out var reason), $"scenario {scenario.Id} must satisfy fairness contract: {reason}");
                 Assert(scenario.Routes.TrueForAll(route => route.PreservesResidentAgency), $"scenario {scenario.Id} must preserve resident agency");
             }
+        }
+
+        private static void AuthorableScenarioRequiresCompleteMaterialContract()
+        {
+            var scenario = new ScenarioDefinition
+            {
+                Id = "test.authorable",
+                ClimateProfileId = "climate.test",
+                InfrastructureConditionKey = "reason.external_air_at_threshold",
+                BoundaryContextKey = "reason.quiet_window",
+                FailureBaselineKey = "baseline.test",
+                ArchiveOutcomeKey = "archive.test",
+                CooldownFamily = "cooldown.test",
+                SupportsLowSensory = true
+            };
+            scenario.Foreshadows.Add(new ForeshadowDefinition { Id = "test.foreshadow.air", SensorModeKey = "sensor.air", SensoryFamily = "direction", CaptionKey = "caption.cold_rises_from_entrance", PatternKey = "pattern.test_air", ConditionKey = "condition.test_air" });
+            scenario.Foreshadows.Add(new ForeshadowDefinition { Id = "test.foreshadow.vibration", SensorModeKey = "sensor.vibration", SensoryFamily = "world_audio", CaptionKey = "caption.riser_tone_shifts", PatternKey = "pattern.test_vibration", ConditionKey = "condition.test_vibration" });
+            scenario.Routes.Add(new ScenarioRouteDefinition { RouteId = "route.quiet_middle", BenefitKey = "route.quiet.benefit.preserve_quiet_window", CostKey = "route.quiet.cost.slower_threshold_recovery", AccessibleSummaryKey = "route.quiet.cost.slower_threshold_recovery", PreservesResidentAgency = true });
+            scenario.Routes.Add(new ScenarioRouteDefinition { RouteId = "route.direct_lower", BenefitKey = "route.direct.benefit.fast_threshold_warmth", CostKey = "route.direct.cost.branch_26_resonance", AccessibleSummaryKey = "route.direct.cost.branch_26_resonance", PreservesResidentAgency = true });
+            Assert(scenario.IsAuthorable(out var authorableReason), "complete authorable scenario must validate: " + authorableReason);
+            scenario.BoundaryContextKey = string.Empty;
+            Assert(!scenario.IsAuthorable(out _), "authorable scenario without boundary context must be rejected");
+        }
+
+        private static void ScriptedDayFixtureMatchesAuthoritativeSequence()
+        {
+            var fixture = ScriptedDayFixtureCatalog.CarefulThreeChainDay();
+            Assert(fixture.IsSafe(CanonicalScenarioCatalog.Create(), out var fixtureReason), "careful day fixture must be safe: " + fixtureReason);
+
+            var world = SimulationWorld.CreatePrologue(79);
+            var orchestrator = new SimulationOrchestrator();
+            foreach (var step in fixture.Steps)
+            {
+                StepUntil(world, orchestrator, () => world.Event.ActiveChainId == step.ScenarioId && world.Event.Phase == EventPhase.Warning, step.MaxTicksToWarning, "fixture must reach visible warning for " + step.ScenarioId);
+                SetRoute(world, orchestrator, step.RouteId, step.Openness);
+                StepUntil(world, orchestrator, () => world.Event.ActiveChainId == step.ScenarioId && world.Event.Phase == EventPhase.Aftermath, step.MaxTicksToResolution, "fixture must reach recoverable aftermath for " + step.ScenarioId);
+                Assert(world.Event.LastOutcomeKey == step.ExpectedOutcomeKey, "fixture must expose expected player-facing outcome for " + step.ScenarioId);
+                Assert(world.Archive.UnlockedEntries.Contains(step.ExpectedArchiveKey), "fixture must archive material outcome for " + step.ScenarioId);
+            }
+            StepUntil(world, orchestrator, () => world.Event.Phase == EventPhase.Cooldown, 24, "fixture must reach day-complete cooldown without a hard failure");
+            Assert(world.Event.LastOutcomeKey == fixture.ExpectedFinalOutcomeKey, "fixture must finish at its documented recoverable baseline");
+            Assert(world.Archive.UnlockedEntries.Contains("archive.day_complete"), "fixture completion must leave a reflective day archive entry");
+
+            var invalid = new ScriptedDayFixture { Id = "fixture.invalid", ExpectedFinalOutcomeKey = "baseline.day_complete" };
+            invalid.Steps.Add(new ScriptedScenarioStep { ScenarioId = "prologue.open_door", RouteId = "route.unknown", Openness = .5f, ExpectedArchiveKey = "archive.threshold_route", ExpectedOutcomeKey = "archive.threshold_route" });
+            Assert(!invalid.IsSafe(CanonicalScenarioCatalog.Create(), out _), "fixture with unknown route must be rejected before it can be used by authoring");
         }
 
         private static void AccessibilityProfileIsBoundedAndNonAuthoritative()
@@ -253,6 +301,16 @@ namespace OneDayThermostat.Tests
         private static void Step(SimulationWorld world, SimulationOrchestrator orchestrator, int count)
         {
             for (var index = 0; index < count; index++) orchestrator.Step(world);
+        }
+
+        private static void StepUntil(SimulationWorld world, SimulationOrchestrator orchestrator, Func<bool> condition, int maxTicks, string failureMessage)
+        {
+            for (var index = 0; index < maxTicks; index++)
+            {
+                if (condition()) return;
+                orchestrator.Step(world);
+            }
+            Assert(condition(), failureMessage);
         }
 
         private static void Assert(bool condition, string message)

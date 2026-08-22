@@ -21,6 +21,8 @@
 | Governor not silent | `SafetyGovernor`, `PolicyPreviewDTO`, Policy Log | Unsafe pulse smoke test | UI displays reason+alternative. |
 | WebGL-safe presentation | `ThermostatShowcaseUI`, generated art, CPU snapshot flow | Unity WebGL smoke | No compute shader required. |
 | Localization/content authoring | `LocalizationCatalog`, `LocalizationProvider`, `ContentManifestAsset`, JSON contract | Core fallback/duplicate test + Node ru/en parity check | Missing text stays visible; content cannot inject commands or scripts. |
+| Authorable scenario material contract | `ScenarioDefinitionAsset.ToRuntimeDefinition`, `ScenarioDefinition.IsAuthorable` | Core complete/missing-boundary contract test | Unity manifest rejects incomplete scenario, semantic key and agency route. |
+| Scripted day fixture parity | `ScriptedDayFixtureAsset`, pure `ScriptedDayFixtureCatalog` | Core bounded three-chain player-command fixture | Unity fixture uses inspector data; no direct state writes or EventDirector bypass. |
 | Explicit player start | `UnitySimulationDriver.StartSession`, onboarding overlay | Unity PlayMode start/skip pass | No tick or GameplayStart behind onboarding. |
 | Platform pause parity | `GamePlatformBootstrap` + `Time.deltaTime` driver | WebGL pause/resume pass | No authoritative tick advances under platform pause. |
 | Non-colour accessibility | Sensor atlas, captions, labels, low-sensory toggle | Manual accessibility run | Critical cue readable with caption only. |
@@ -36,4 +38,4 @@
 
 ## Minimum fixture set
 
-`CoreSmokeTests` validates deterministic route outcome, protective Governor block, DTO map round-trip, the three-chain campaign through staged return, fairness of the full catalog and bounded/non-authoritative accessibility profile semantics. Перед публикацией добавьте Unity fixtures для: surface lag, silver corridor moisture, uneven branch start-stop, blackout staged return, save/load each event phase, policy active continuity, corrupt current/backup recovery, GamePush offline fallback и consent revoke.
+`CoreSmokeTests` validates deterministic route outcome, protective Governor block, DTO map round-trip, the three-chain campaign through staged return, fairness of the full catalog, complete authorable scenario contract, bounded scripted day fixture parity and bounded/non-authoritative accessibility profile semantics. Перед публикацией добавьте Unity fixtures для: surface lag, silver corridor moisture, uneven branch start-stop, blackout staged return, save/load each event phase, policy active continuity, corrupt current/backup recovery, GamePush offline fallback и consent revoke.

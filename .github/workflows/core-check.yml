@@ -42,6 +42,7 @@ jobs:
             Assets/_Project/Gameplay/Progression/AchievementProgression.cs \
             Assets/_Project/Content/Localization/Runtime/LocalizationCatalog.cs \
             Assets/_Project/Content/Runtime/ScenarioDefinitions.cs \
+            Assets/_Project/Content/Runtime/ScriptedDayFixtures.cs \
             Assets/_Project/Tests/EditMode/CoreSmokeTests.cs
           mono /tmp/one-day-thermostat-core-tests.exe
 

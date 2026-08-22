@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using OneDayThermostat.Content;
 using OneDayThermostat.Core;
 using OneDayThermostat.Gameplay.Automation;
 using UnityEngine;
@@ -30,6 +31,49 @@ namespace OneDayThermostat.Content.Definitions
         public bool SupportsLowSensory => supportsLowSensory;
         public IReadOnlyList<ForeshadowAsset> Foreshadows => foreshadows;
         public IReadOnlyList<RouteAsset> Routes => routes;
+
+        public bool IsSafe(out string reason) => ToRuntimeDefinition().IsAuthorable(out reason);
+
+        public ScenarioDefinition ToRuntimeDefinition()
+        {
+            var runtime = new ScenarioDefinition
+            {
+                Id = stableId,
+                ClimateProfileId = climateProfileId,
+                InfrastructureConditionKey = infrastructureConditionKey,
+                BoundaryContextKey = boundaryContextKey,
+                FailureBaselineKey = failureBaselineKey,
+                ArchiveOutcomeKey = archiveOutcomeKey,
+                CooldownFamily = cooldownFamily,
+                SupportsLowSensory = supportsLowSensory
+            };
+            foreach (var item in foreshadows)
+            {
+                if (item == null) continue;
+                runtime.Foreshadows.Add(new ForeshadowDefinition
+                {
+                    Id = item.stableId,
+                    SensorModeKey = "sensor." + item.sensorMode.ToString().ToLowerInvariant(),
+                    SensoryFamily = item.sensoryFamily,
+                    CaptionKey = item.captionKey,
+                    PatternKey = item.patternKey,
+                    ConditionKey = item.conditionKey
+                });
+            }
+            foreach (var item in routes)
+            {
+                if (item == null) continue;
+                runtime.Routes.Add(new ScenarioRouteDefinition
+                {
+                    RouteId = item.routeId,
+                    BenefitKey = item.benefitKey,
+                    CostKey = item.costKey,
+                    AccessibleSummaryKey = item.accessibleSummaryKey,
+                    PreservesResidentAgency = true
+                });
+            }
+            return runtime;
+        }
     }
 
     [Serializable]
@@ -50,6 +94,51 @@ namespace OneDayThermostat.Content.Definitions
         public string benefitKey;
         public string costKey;
         public string accessibleSummaryKey;
+    }
+
+    [CreateAssetMenu(menuName = "One Day Thermostat/Scripted Day Fixture", fileName = "Fixture_")]
+    public sealed class ScriptedDayFixtureAsset : ScriptableObject
+    {
+        [SerializeField] private string stableId;
+        [SerializeField] private string expectedFinalOutcomeKey;
+        [SerializeField] private List<ScriptedScenarioStepAsset> steps = new List<ScriptedScenarioStepAsset>();
+
+        public string StableId => stableId;
+        public IReadOnlyList<ScriptedScenarioStepAsset> Steps => steps;
+
+        public bool IsSafe(IReadOnlyList<ScenarioDefinition> scenarios, out string reason) => ToRuntimeFixture().IsSafe(scenarios, out reason);
+
+        public ScriptedDayFixture ToRuntimeFixture()
+        {
+            var fixture = new ScriptedDayFixture { Id = stableId, ExpectedFinalOutcomeKey = expectedFinalOutcomeKey };
+            foreach (var item in steps)
+            {
+                if (item == null) continue;
+                fixture.Steps.Add(new ScriptedScenarioStep
+                {
+                    ScenarioId = item.scenarioId,
+                    RouteId = item.routeId,
+                    Openness = item.openness,
+                    ExpectedArchiveKey = item.expectedArchiveKey,
+                    ExpectedOutcomeKey = item.expectedOutcomeKey,
+                    MaxTicksToWarning = item.maxTicksToWarning,
+                    MaxTicksToResolution = item.maxTicksToResolution
+                });
+            }
+            return fixture;
+        }
+    }
+
+    [Serializable]
+    public sealed class ScriptedScenarioStepAsset
+    {
+        public string scenarioId;
+        public string routeId;
+        [Range(0f, 1f)] public float openness;
+        public string expectedArchiveKey;
+        public string expectedOutcomeKey;
+        [Min(1)] public int maxTicksToWarning = 24;
+        [Min(1)] public int maxTicksToResolution = 18;
     }
 
     public enum ModifierKind { Sensor, Route }
