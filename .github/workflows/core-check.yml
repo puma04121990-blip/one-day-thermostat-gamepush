@@ -20,7 +20,7 @@ jobs:
         run: |
           test ! -f Assets/_Project/Platform/GamePush/gamepush.local.json
           test ! -f Assets/_Project/Platform/GamePush/GamePushSettings.local.asset
-          ! git grep -nE '(ghp_|github_pat_|sk-[A-Za-z0-9]{12,}|AIza[0-9A-Za-z_-]{20,})' || (echo 'Potential credential pattern committed.' && exit 1)
+          ! git grep -nE '(ghp_|github_pat_|sk-[A-Za-z0-9]{12,}|AIza[0-9A-Za-z_-]{20,})' -- ':!.github/workflows/core-check.yml' || (echo 'Potential credential pattern committed.' && exit 1)
 
       - name: Install Mono compiler
         run: |
