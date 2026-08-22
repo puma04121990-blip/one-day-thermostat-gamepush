@@ -166,7 +166,7 @@ namespace OneDayThermostat.Gameplay.Automation
 
     public sealed class DiagnosticReasoning
     {
-        public void Update(SimulationWorld world)
+        public void Update(SimulationWorld world, FirmwareModifierCatalog configuration = null)
         {
             world.LatestReasons.Clear();
             world.LatestPreviews.Clear();
@@ -177,6 +177,7 @@ namespace OneDayThermostat.Gameplay.Automation
             world.LatestReasons.Add(new DiagnosticReason { Key = "reason.external_air_at_threshold", ZoneId = "entrance", Weight = 1f - entrance.AirTemperature });
             world.LatestReasons.Add(new DiagnosticReason { Key = branch.TopExplanationA, ZoneId = "sasha_room", Weight = branch.RecentStress });
             if (kitchen.Moisture > .32f) world.LatestReasons.Add(new DiagnosticReason { Key = "reason.moisture_residual", ZoneId = "lera_kitchen", Weight = kitchen.Moisture });
+            configuration?.TuneReasons(world);
             world.LatestReasons.Sort((a, b) => b.Weight.CompareTo(a.Weight));
             if (world.LatestReasons.Count > 2) world.LatestReasons.RemoveRange(2, world.LatestReasons.Count - 2);
 

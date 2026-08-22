@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using OneDayThermostat.Core;
+using OneDayThermostat.Gameplay.Automation;
 using UnityEngine;
 
 namespace OneDayThermostat.Presentation.Runtime
@@ -80,6 +81,21 @@ namespace OneDayThermostat.Presentation.Runtime
         public void UseRecovery(string componentId)
         {
             _orchestrator.Enqueue(_world, new SimulationCommand { Kind = CommandKind.Recover, TargetId = componentId, Value = 1f, Source = "player" });
+        }
+
+        public ConfigurationPreviewDTO PreviewFirmware(string firmwareId) => _orchestrator.PreviewFirmware(_world, firmwareId);
+
+        public ConfigurationPreviewDTO PreviewModifier(string modifierId, ModifierChannel channel) => _orchestrator.PreviewModifier(_world, modifierId, channel);
+
+        public void SelectFirmware(string firmwareId)
+        {
+            _orchestrator.Enqueue(_world, new SimulationCommand { Kind = CommandKind.SelectFirmware, TargetId = firmwareId, Value = 1f, Source = "player" });
+        }
+
+        public void SelectModifier(string modifierId, ModifierChannel channel)
+        {
+            var kind = channel == ModifierChannel.Sensor ? CommandKind.SelectSensorModifier : CommandKind.SelectRouteModifier;
+            _orchestrator.Enqueue(_world, new SimulationCommand { Kind = kind, TargetId = modifierId, Value = 1f, Source = "player" });
         }
 
         public PolicyPreviewDTO PreviewPolicy(string ruleId) => _orchestrator.PreviewPolicy(_world, ruleId);

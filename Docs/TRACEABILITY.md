@@ -14,6 +14,8 @@
 | Component wear/hysteresis/recovery | `ComponentStressSystem`, `ComponentState` | EditMode stage/recovery tests | No unrecoverable invisible failure. |
 | Save/load/migration | `ThermostatSaveRootDTO`, `SaveCoordinator`, `SaveMapper` | DTO round-trip; corrupt-current/backup fixture | Mid-event/policy states survive. |
 | Rules bounded | `PolicyRuleDefinition.IsWellFormed` | Unit test missing `UNTIL` blocks | UI has Preview/Commit parity. |
+| Firmware/modifier whitelist | `FirmwareModifierCatalog`, typed selection commands, authoring assets | Core smoke: preview/no mutation, channel mismatch, unknown ID rejection | Нет arbitrary code, unknown selection или bypass Governor. |
+| Bounded configuration effect | `TuneReasons`, `ApplyRouteModifier`, player-facing summary | Core smoke: direct boost bounded effect | Максимум две причины и route value остаётся нормализованным. |
 | Governor not silent | `SafetyGovernor`, `PolicyPreviewDTO`, Policy Log | Unsafe pulse smoke test | UI displays reason+alternative. |
 | WebGL-safe presentation | `ThermostatShowcaseUI`, generated art, CPU snapshot flow | Unity WebGL smoke | No compute shader required. |
 | Explicit player start | `UnitySimulationDriver.StartSession`, onboarding overlay | Unity PlayMode start/skip pass | No tick or GameplayStart behind onboarding. |

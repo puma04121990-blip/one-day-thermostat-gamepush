@@ -21,6 +21,7 @@ namespace OneDayThermostat.Presentation.UI
         private Text _diagnostics;
         private Text _caption;
         private Text _policy;
+        private Text _configuration;
         private Text _archive;
         private Button _routeA;
         private Button _routeB;
@@ -33,6 +34,10 @@ namespace OneDayThermostat.Presentation.UI
         private Toggle _reducedMotion;
         private Toggle _lowSensory;
         private PolicyPreviewDTO _lastPolicyPreview;
+        private ConfigurationPreviewDTO _lastConfigurationPreview;
+        private string _candidateFirmware = "firmware.surface_memory";
+        private string _candidateSensorModifier = "modifier.early_contour";
+        private string _candidateRouteModifier = "modifier.soft_open";
 
         private void Awake()
         {
@@ -106,6 +111,16 @@ namespace OneDayThermostat.Presentation.UI
             var commit = CreateButton(rightPanel, "CommitPolicy", "ЗАКРЕПИТЬ ПОЛИТИКУ", CommitPolicy);
             Stretch(commit.GetComponent<RectTransform>(), 0, 0, 1, 0, 18, 30, -18, -10);
             _policy = CreateText(rightPanel, "Policy", "Policy Log: правило ещё не просмотрено.", 14, _amber, TextAnchor.LowerLeft, new Vector2(18, 108), new Vector2(-18, 140));
+            CreateText(rightPanel, "ConfigurationHeading", "ПРОШИВКА И МОДИФИКАТОРЫ", 15, _cyan, TextAnchor.UpperLeft, new Vector2(18, -236), new Vector2(-18, -262));
+            _configuration = CreateText(rightPanel, "Configuration", "Конфигурация: чтение текущего состояния…", 14, new Color(.88f, .91f, .92f), TextAnchor.UpperLeft, new Vector2(18, -270), new Vector2(-18, -352));
+            var firmware = CreateButton(rightPanel, "NextFirmware", "ПРОШИВКА: СМОТРЕТЬ СЛЕДУЮЩУЮ", PreviewNextFirmware);
+            Stretch(firmware.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -372, -18, -412);
+            var sensorModifier = CreateButton(rightPanel, "NextSensorModifier", "СЕНСОР: СМОТРЕТЬ СЛЕДУЮЩИЙ", PreviewNextSensorModifier);
+            Stretch(sensorModifier.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -420, -18, -460);
+            var routeModifier = CreateButton(rightPanel, "NextRouteModifier", "МАРШРУТ: СМОТРЕТЬ СЛЕДУЮЩИЙ", PreviewNextRouteModifier);
+            Stretch(routeModifier.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -468, -18, -508);
+            var commitConfiguration = CreateButton(rightPanel, "CommitConfiguration", "ПРИМЕНИТЬ ПРОСМОТРЕННОЕ", CommitConfiguration);
+            Stretch(commitConfiguration.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -524, -18, -564);
 
             var settings = CreatePanel(canvasRoot.transform, "Accessibility", _slate);
             Stretch(settings, 0, 0, 0, 0, 28, 24, 330, 174);
@@ -195,6 +210,7 @@ namespace OneDayThermostat.Presentation.UI
                 ? "ЖУРНАЛ: наблюдение началось; след ещё не завершён."
                 : "ЖУРНАЛ: " + string.Join(" · ", snapshot.Archive.UnlockedEntries.Take(3).Select(ArchiveLabel)) + (string.IsNullOrWhiteSpace(snapshot.Event.LastOutcomeKey) ? string.Empty : "\nПоследствие: " + OutcomeLabel(snapshot.Event.LastOutcomeKey));
             UpdateRouteChoices(snapshot);
+            UpdateConfigurationSummary(snapshot);
         }
 
         private void CommitPrimaryRoute()
@@ -245,6 +261,57 @@ namespace OneDayThermostat.Presentation.UI
             Render(_driver.CurrentSnapshot);
         }
 
+        private void PreviewNextFirmware()
+        {
+            _candidateFirmware = NextOf(_candidateFirmware, "firmware.surface_memory", "firmware.air_first", "firmware.quiet_window");
+            _lastConfigurationPreview = _driver.PreviewFirmware(_candidateFirmware);
+            ShowConfigurationPreview(_lastConfigurationPreview);
+        }
+
+        private void PreviewNextSensorModifier()
+        {
+            _candidateSensorModifier = NextOf(_candidateSensorModifier, "modifier.early_contour", "modifier.moisture_stipple");
+            _lastConfigurationPreview = _driver.PreviewModifier(_candidateSensorModifier, ModifierChannel.Sensor);
+            ShowConfigurationPreview(_lastConfigurationPreview);
+        }
+
+        private void PreviewNextRouteModifier()
+        {
+            _candidateRouteModifier = NextOf(_candidateRouteModifier, "modifier.soft_open", "modifier.direct_boost");
+            _lastConfigurationPreview = _driver.PreviewModifier(_candidateRouteModifier, ModifierChannel.Route);
+            ShowConfigurationPreview(_lastConfigurationPreview);
+        }
+
+        private void CommitConfiguration()
+        {
+            if (_lastConfigurationPreview == null || _lastConfigurationPreview.Status != PolicyDecisionStatus.Valid || _driver.CurrentSnapshot.Tick > _lastConfigurationPreview.StaleAtTick)
+            {
+                _policy.text = "Policy Log: сначала просмотрите актуальную конфигурацию. Т‑3 не применяет устаревший выбор.";
+                return;
+            }
+            if (_lastConfigurationPreview.ModifierChannel.HasValue) _driver.SelectModifier(_lastConfigurationPreview.SelectionId, _lastConfigurationPreview.ModifierChannel.Value);
+            else _driver.SelectFirmware(_lastConfigurationPreview.SelectionId);
+            _policy.text = "Policy Log: конфигурация поставлена в очередь. Следующий тик сохранит видимый компромисс.";
+        }
+
+        private void UpdateConfigurationSummary(SimulationSnapshot snapshot)
+        {
+            if (_configuration == null) return;
+            _configuration.text = "Активно: " + ConfigurationTitle(snapshot.Policy.FirmwareId) + "\n" + ConfigurationTitle(snapshot.Policy.SensorModifierId) + " · " + ConfigurationTitle(snapshot.Policy.RouteModifierId);
+        }
+
+        private void ShowConfigurationPreview(ConfigurationPreviewDTO preview)
+        {
+            if (_configuration == null || preview == null) return;
+            _configuration.text = "Просмотр: " + ConfigurationTitle(preview.SelectionId) + "\nЭффект: " + ConfigurationEffect(preview.EffectKey) + "\nЦена: " + ConfigurationEffect(preview.TradeoffKey) + (string.IsNullOrWhiteSpace(preview.AlternativeKey) ? string.Empty : "\nОбход: " + ConfigurationEffect(preview.AlternativeKey));
+        }
+
+        private static string NextOf(string current, params string[] ids)
+        {
+            var index = Array.IndexOf(ids, current);
+            return ids[(index + 1 + ids.Length) % ids.Length];
+        }
+
         private void PreviewPolicy()
         {
             _lastPolicyPreview = _driver.PreviewPolicy("policy.surface_shade_until_falling");
@@ -287,6 +354,16 @@ namespace OneDayThermostat.Presentation.UI
         private static string PhaseLabel(EventPhase phase)
         {
             return phase == EventPhase.Foreshadow ? "предвестник" : phase == EventPhase.Warning ? "внимание" : phase == EventPhase.Active ? "активный след" : phase == EventPhase.Aftermath ? "новый baseline" : "ожидание";
+        }
+
+        private static string ConfigurationTitle(string key)
+        {
+            return key == "firmware.surface_memory" ? "Surface Memory" : key == "firmware.air_first" ? "Air First" : key == "firmware.quiet_window" ? "Quiet Window" : key == "modifier.early_contour" ? "Ранний контур" : key == "modifier.moisture_stipple" ? "Серебряный стиппл" : key == "modifier.soft_open" ? "Мягкое открытие" : key == "modifier.direct_boost" ? "Прямой импульс" : key;
+        }
+
+        private static string ConfigurationEffect(string key)
+        {
+            return key == "firmware.surface_memory.effect.surface_lag" ? "сначала поднимает след поверхности" : key == "firmware.surface_memory.cost.slower_response" ? "реакция маршрута медленнее" : key == "firmware.air_first.effect.air_foreground" ? "сначала поднимает воздух у порога" : key == "firmware.air_first.cost.moisture_less_prominent" ? "влага не получает приоритета" : key == "firmware.quiet_window.effect.rhythm_foreground" ? "сначала показывает тихое окно" : key == "firmware.quiet_window.cost.slower_route_switch" ? "переключение требует больше времени" : key == "modifier.early_contour.effect.surface_contour" ? "контур поверхности появляется раньше" : key == "modifier.early_contour.cost.more_surface_signals" ? "поверхностных сигналов больше" : key == "modifier.moisture_stipple.effect.moisture_stipple" ? "влага получает штриховой след" : key == "modifier.moisture_stipple.cost.air_signal_less_prominent" ? "воздушный сигнал менее заметен" : key == "modifier.soft_open.effect.cap_direct_open" ? "ограничивает прямое открытие" : key == "modifier.soft_open.cost.slower_threshold_recovery" ? "порог восстанавливается медленнее" : key == "modifier.direct_boost.effect.raise_direct_open" ? "поднимает прямой маршрут" : key == "modifier.direct_boost.cost.branch_resonance" ? "резонанс ветви 26 заметнее" : key == "configuration.already_selected" ? "эта конфигурация уже активна" : key == "configuration.unknown" ? "выбор не входит в каталог" : key == "configuration.alternative.select_known_firmware" || key == "configuration.alternative.select_known_modifier" ? "выберите запись из локального каталога" : key == "configuration.alternative.safe_content_only" ? "используйте безопасный data-driven content" : key;
         }
 
         private static string PolicyStatus(PolicyDecisionStatus status)

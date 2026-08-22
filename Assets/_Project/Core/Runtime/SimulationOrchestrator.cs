@@ -15,6 +15,7 @@ namespace OneDayThermostat.Core
         private readonly EventDirector _events = new EventDirector();
         private readonly DiagnosticReasoning _diagnostics = new DiagnosticReasoning();
         private readonly AutomationEvaluator _automation = new AutomationEvaluator(new SafetyGovernor());
+        private readonly FirmwareModifierCatalog _configuration = new FirmwareModifierCatalog();
         private readonly Dictionary<string, PolicyRuleDefinition> _rules = new Dictionary<string, PolicyRuleDefinition>();
 
         public SimulationOrchestrator()
@@ -39,6 +40,10 @@ namespace OneDayThermostat.Core
             world.PendingCommands.Add(command);
         }
 
+        public ConfigurationPreviewDTO PreviewFirmware(SimulationWorld world, string firmwareId) => _configuration.PreviewFirmware(world, firmwareId);
+
+        public ConfigurationPreviewDTO PreviewModifier(SimulationWorld world, string modifierId, ModifierChannel channel) => _configuration.PreviewModifier(world, modifierId, channel);
+
         public PolicyPreviewDTO PreviewPolicy(SimulationWorld world, string ruleId)
         {
             if (!_rules.TryGetValue(ruleId, out var rule))
@@ -58,7 +63,7 @@ namespace OneDayThermostat.Core
             _events.Step(world, TickSeconds);
             EvaluateAndQueuePolicy(world);
             CommitCommands(world);
-            _diagnostics.Update(world);
+            _diagnostics.Update(world, _configuration);
             world.Tick++;
             world.DayProgress = (world.DayProgress + .0025f) % 1f;
             var snapshot = world.CreateSnapshot();
@@ -91,54 +96,78 @@ namespace OneDayThermostat.Core
             }
         }
 
-        private static void CommitCommands(SimulationWorld world)
+        private void CommitCommands(SimulationWorld world)
         {
             foreach (var command in world.PendingCommands.OrderBy(x => Priority(x.Kind)).ThenBy(x => x.SubmittedAtTick).ToArray())
             {
-                switch (command.Kind)
+                var adjusted = command;
+                _configuration.ApplyRouteModifier(world, ref adjusted);
+                switch (adjusted.Kind)
                 {
                     case CommandKind.SetRoute:
-                        if (world.Routes.TryGetValue(command.TargetId, out var route) && route.IsAvailable)
+                        if (world.Routes.TryGetValue(adjusted.TargetId, out var route) && route.IsAvailable)
                         {
-                            route.Openness = Clamp01(command.Value);
+                            route.Openness = Clamp01(adjusted.Value);
                         }
                         break;
                     case CommandKind.Tune:
-                        if (world.Zones.TryGetValue(command.TargetId, out var zone)) zone.AirTemperature = Clamp01(zone.AirTemperature + command.Value * .05f);
+                        if (world.Zones.TryGetValue(adjusted.TargetId, out var zone)) zone.AirTemperature = Clamp01(zone.AirTemperature + adjusted.Value * .05f);
                         break;
                     case CommandKind.Pulse:
                         if (world.Components.Values.Any(x => x.Stage == ComponentStage.Protective)) break;
-                        if (world.Zones.TryGetValue(command.TargetId, out var pulseZone))
+                        if (world.Zones.TryGetValue(adjusted.TargetId, out var pulseZone))
                         {
-                            pulseZone.AirTemperature = Clamp01(pulseZone.AirTemperature + command.Value * .08f);
-                            pulseZone.ActiveLoad = Clamp01(pulseZone.ActiveLoad + command.Value * .18f);
+                            pulseZone.AirTemperature = Clamp01(pulseZone.AirTemperature + adjusted.Value * .08f);
+                            pulseZone.ActiveLoad = Clamp01(pulseZone.ActiveLoad + adjusted.Value * .18f);
                         }
                         break;
                     case CommandKind.Isolate:
-                        if (world.Routes.TryGetValue(command.TargetId, out var isolationRoute)) isolationRoute.IsAvailable = false;
+                        if (world.Routes.TryGetValue(adjusted.TargetId, out var isolationRoute)) isolationRoute.IsAvailable = false;
                         break;
                     case CommandKind.Recover:
-                        if (world.Components.TryGetValue(command.TargetId, out var component))
+                        if (world.Components.TryGetValue(adjusted.TargetId, out var component))
                         {
                             component.Wear = Clamp01(component.Wear - .06f);
                             component.RecoveryProgress = Clamp01(component.RecoveryProgress + .18f);
                         }
                         break;
                     case CommandKind.CommitPolicy:
-                        world.Policy.ActiveRuleId = command.TargetId;
+                        world.Policy.ActiveRuleId = adjusted.TargetId;
                         world.Policy.ActiveRuleEnabled = true;
                         break;
                     case CommandKind.CancelPolicy:
                         world.Policy.ActiveRuleEnabled = false;
+                        break;
+                    case CommandKind.SelectFirmware:
+                        if (_configuration.IsKnownFirmware(adjusted.TargetId)) RecordConfiguration(world, adjusted, "configuration.firmware_selected", () => world.Policy.FirmwareId = adjusted.TargetId);
+                        break;
+                    case CommandKind.SelectSensorModifier:
+                        if (_configuration.IsKnownModifier(adjusted.TargetId, ModifierChannel.Sensor)) RecordConfiguration(world, adjusted, "configuration.sensor_modifier_selected", () => world.Policy.SensorModifierId = adjusted.TargetId);
+                        break;
+                    case CommandKind.SelectRouteModifier:
+                        if (_configuration.IsKnownModifier(adjusted.TargetId, ModifierChannel.Route)) RecordConfiguration(world, adjusted, "configuration.route_modifier_selected", () => world.Policy.RouteModifierId = adjusted.TargetId);
                         break;
                 }
             }
             world.PendingCommands.Clear();
         }
 
+        private static void RecordConfiguration(SimulationWorld world, SimulationCommand command, string reasonKey, Action apply)
+        {
+            apply();
+            world.Policy.Log.Add(new PolicyLogEntry
+            {
+                Tick = world.Tick,
+                RuleId = command.TargetId,
+                Status = PolicyDecisionStatus.Valid,
+                ReasonKey = reasonKey,
+                AlternativeKey = string.Empty
+            });
+        }
+
         private static int Priority(CommandKind kind)
         {
-            return kind == CommandKind.Isolate ? 0 : kind == CommandKind.Recover ? 1 : kind == CommandKind.SetRoute ? 2 : kind == CommandKind.Pulse ? 3 : 4;
+            return kind == CommandKind.Isolate ? 0 : kind == CommandKind.Recover ? 1 : kind == CommandKind.SetRoute ? 2 : kind == CommandKind.Pulse ? 3 : kind == CommandKind.SelectFirmware || kind == CommandKind.SelectSensorModifier || kind == CommandKind.SelectRouteModifier ? 4 : 5;
         }
 
         private static float Clamp01(float value) => Math.Max(0f, Math.Min(1f, value));
