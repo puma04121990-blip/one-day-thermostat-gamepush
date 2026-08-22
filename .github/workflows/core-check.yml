@@ -1,0 +1,48 @@
+name: Core checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  secret-and-core-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject committed local platform configuration
+        run: |
+          test ! -f Assets/_Project/Platform/GamePush/gamepush.local.json
+          test ! -f Assets/_Project/Platform/GamePush/GamePushSettings.local.asset
+          ! git grep -nE '(ghp_|github_pat_|sk-[A-Za-z0-9]{12,}|AIza[0-9A-Za-z_-]{20,})' || (echo 'Potential credential pattern committed.' && exit 1)
+
+      - name: Install Mono compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mono-mcs
+
+      - name: Compile deterministic core smoke-test
+        run: |
+          mcs -langversion:latest -out:/tmp/one-day-thermostat-core-tests.exe \
+            Assets/_Project/Core/Runtime/ThermostatDomain.cs \
+            Assets/_Project/Core/Runtime/SimulationWorld.cs \
+            Assets/_Project/Core/Runtime/SimulationOrchestrator.cs \
+            Assets/_Project/Core/Runtime/SaveContract.cs \
+            Assets/_Project/Gameplay/Climate/AuthoritativeSystems.cs \
+            Assets/_Project/Gameplay/Automation/AutomationAndDiagnostics.cs \
+            Assets/_Project/Content/Runtime/ScenarioDefinitions.cs \
+            Assets/_Project/Tests/EditMode/CoreSmokeTests.cs
+          mono /tmp/one-day-thermostat-core-tests.exe
+
+      - name: Verify required production documents
+        run: |
+          test -f Docs/GAMEPUSH_SETUP.md
+          test -f Docs/ARCHITECTURE.md
+          test -f Docs/RELEASE_CHECKLIST.md
+          test -f Assets/_Project/Presentation/Visuals/ASSET_MANIFEST.md
