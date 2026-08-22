@@ -224,4 +224,42 @@ describe("ThermostatSimulation", () => {
     expect(simulation.queuePolicy(preview)).toBe(false);
     expect(simulation.snapshot().policy.pending).toBeUndefined();
   });
+
+  it("spawns branch-26 emergency only after the independent vibration lesson, then resolves it through a recoverable safe route", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    advanceTicks(simulation, 4);
+    expect(simulation.snapshot().event.state).toBe("dormant");
+
+    simulation.reset();
+    simulation.start();
+    simulation.selectSensor("vibration");
+    advanceTicks(simulation, 7);
+    advanceTicks(simulation, 4);
+    let state = simulation.snapshot();
+    expect(state.event.id).toBe("event.branch_26_quiet");
+    expect(state.event.state).toBe("warning");
+    expect(state.options.map((entry) => entry.title)).toEqual(["Safe-flow и буфер", "Карантин и шунт"]);
+    simulation.chooseRoute("careful");
+    advanceTicks(simulation, 6);
+    state = simulation.snapshot();
+    expect(state.event.state).toBe("stabilized");
+    expect(state.archive.some((entry) => entry.title === "Ветвь 26 просит тишины")).toBe(true);
+    expect(state.stewardship.recognitions.map((entry) => entry.id)).toContain("emergency.branch26.safe");
+  });
+
+  it("keeps stewardship recognition idempotent and feedback fully local behind explicit consent", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    expect(simulation.snapshot().stewardship.recognitions).toHaveLength(1);
+    expect(simulation.recordFeedback("cause", "clear")).toBe(false);
+    simulation.setFeedbackConsent("accepted");
+    expect(simulation.recordFeedback("cause", "unclear")).toBe(true);
+    expect(JSON.parse(simulation.exportFeedback())).toEqual({ schemaVersion: 1, consent: "accepted", entries: [{ tick: simulation.snapshot().tick, topic: "cause", understanding: "unclear" }] });
+    simulation.setFeedbackConsent("declined");
+    expect(simulation.snapshot().feedback.entries).toEqual([]);
+  });
 });

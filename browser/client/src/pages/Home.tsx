@@ -8,7 +8,7 @@ import { POLICY_CATALOG } from "@/game/PolicyCatalog";
 import { SENSOR_LAYERS } from "@/game/ScenarioCatalog";
 import { serviceTraceKey } from "@/game/ServiceCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
-import type { ConfigurationChannel, ConfigurationPreview, GameState, PolicyPreview, RouteKind, SensorLayer } from "@/game/types";
+import type { ConfigurationChannel, ConfigurationPreview, FeedbackTopic, GameState, PolicyPreview, RouteKind, SensorLayer } from "@/game/types";
 
 const LOGO = "/manus-storage/thermostat-route-mark_4292ba1f.png";
 const JOURNAL = "/manus-storage/thermostat-journal-backdrop_cb648cce.png";
@@ -91,6 +91,16 @@ export default function Home() {
   const inspectPolicy = (id: string) => setPolicyPreview(simulation.previewPolicy(id));
   const commitPolicy = () => { if (policyPreview && simulation.queuePolicy(policyPreview)) refresh(); };
   const recoverService = (taskId: string) => { if (simulation.queueServiceRecovery(taskId)) refresh(); };
+  const markFeedback = (topic: FeedbackTopic, understanding: "clear" | "unclear") => { if (simulation.recordFeedback(topic, understanding)) refresh(); };
+  const exportFeedback = () => {
+    const blob = new Blob([simulation.exportFeedback()], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "thermal-trace-local-feedback.json";
+    link.click();
+    URL.revokeObjectURL(href);
+  };
   const openServiceTasks = state.service.tasks.filter((task) => !task.resolved);
 
   return (
@@ -100,6 +110,7 @@ export default function Home() {
         {state.started && <Suspense fallback={<div className="canvas-loading" aria-hidden="true" />}><PhaserThermostat simulation={simulation} onState={receiveState} reducedMotion={profile.reducedMotion} onBoot={handleEngineBoot} onReady={handleEngineReady} /></Suspense>}
         <div className="grain" />
         <div className="copper-route-map" aria-hidden="true"><span className="route-node node-a" /><span className="route-node node-b" /><span className="route-node node-c" /><span className="route-tag">МАРШРУТ / 03</span></div>
+        <div className="house-field" aria-hidden="true"><span className="house-field-label">ДОМ / МАТЕРИАЛЬНЫЙ СРЕЗ</span><span className="house-room room-entry"><i>ПОРОГ</i><em>→→</em></span><span className="house-room room-kitchen"><i>КУХНЯ</i><em>···</em></span><span className="house-room room-quiet"><i>ТИХОЕ ОКНО</i><em>| |</em></span><span className="house-room room-core"><i>ВЕТВЬ 26</i><em>▱▱</em></span><span className="house-route route-one" /><span className="house-route route-two" /><span className="house-node house-node-a" /><span className="house-node house-node-b" /><span className="house-node house-node-c" /></div>
 
         <header className="top-bar">
           <button className="brand-lockup" onClick={() => setHelpOpen(true)} aria-label="О проекте и управлении">
@@ -121,6 +132,7 @@ export default function Home() {
           <h1>{state.chainTitle}</h1>
           <p className="trace-copy">{state.trace}</p>
           <button className="caption-card diagnostic-trigger" onClick={() => setSensorOpen(true)} aria-label="Открыть сенсоры и диагностику"><AudioLines size={17} /><p>{state.caption}</p><ScanSearch size={15} /></button>
+          {state.tutorial.current !== "complete" && <section className="tutorial-rail" aria-live="polite"><p className="eyebrow">ОБУЧЕНИЕ / БЕЗ ПАУЗЫ</p><b>{state.tutorial.current === "observe_heat" ? "Прочитай тепловой след" : state.tutorial.current === "read_vibration" ? "Сверь вибрацию" : state.tutorial.current === "compare_routes" ? "Сравни цену маршрутов" : "Посмотри на новый baseline"}</b><small>Подсказка не отменяет выбор и не создаёт fail-state.</small></section>}
           <div className="sensor-stack" aria-label="Материальные датчики">
             {meters.map((meter) => {
               const value = Math.round(state.metrics[meter.key] * 100);
@@ -145,7 +157,7 @@ export default function Home() {
         </div>}
 
         {state.started && !state.dayComplete && <section className="route-deck" aria-label="Доступные маршруты">
-          <div className="route-deck-heading"><span>МАРШРУТЫ</span><p>{state.phase === "warning" ? "Две видимые цены. Ни один путь не завершает день преждевременно." : "Сначала дождись, пока дом покажет оба предвестника."}</p></div>
+          <div className="route-deck-heading"><span>{state.event.state === "warning" ? "SAFE ISOLATE / BRANCH 26" : "МАРШРУТЫ"}</span><p>{state.event.state === "foreshadow" ? "Два независимых предвестника ветви 26 уже доступны. Сначала собери гипотезу." : state.event.state === "warning" ? "Контур ограничивает риск. Оба маршрута безопасны и оставляют различимую цену." : state.phase === "warning" ? "Две видимые цены. Ни один путь не завершает день преждевременно." : "Сначала дождись, пока дом покажет оба предвестника."}</p></div>
           <div className="route-options">
             {state.options.length > 0 ? state.options.map((option) => <button key={option.id} className={`route-card ${option.id}`} onClick={() => choose(option.id)}>
               <span className="route-key">{option.keyHint}</span><span className="route-label">{option.label}</span><b>{option.title}</b><p><strong>{option.benefit}</strong><em>цена: {option.cost}</em></p>
@@ -161,7 +173,9 @@ export default function Home() {
         <p className="journal-intro">Каждая запись описывает материальный след и последствия маршрута. Она не является оценкой жильца.</p>
         <section className="boundary-card" aria-label="Контекст и границы текущей сцены"><p className="eyebrow">КОНТЕКСТ СЦЕНЫ</p><b>{state.boundaries[0]?.materialSignature}</b><p>{state.boundaries[0]?.context}</p><small>Возможная adaptation: {state.boundaries[0]?.adaptation}</small><small>Player scope: {state.boundaries[0]?.playerScope}</small><em>{state.boundaries[0]?.never}</em></section>
         {state.policy.log.length > 0 && <section className="policy-ledger" aria-label="Журнал policy"><p className="eyebrow">POLICY LOG</p>{[...state.policy.log].reverse().map((entry, index) => <p key={`${entry.tick}-${entry.id}-${index}`}><b>{entry.title}</b> · {entry.state} · Т.{String(entry.tick).padStart(3, "0")}</p>)}</section>}
+        {state.stewardship.recognitions.length > 0 && <section className="stewardship-ledger" aria-label="Журнал бережности"><p className="eyebrow">ЖУРНАЛ БЕРЕЖНОСТИ</p>{[...state.stewardship.recognitions].reverse().map((entry) => <p key={entry.id}><b>{entry.title}</b> · {entry.reason}</p>)}</section>}
         <section className="achievement-ledger" aria-label="Локальные достижения"><div className="achievement-ledger-head"><Trophy size={18} /><span><p className="eyebrow">LOCAL ACHIEVEMENTS</p><b>Следы, а не power-up</b></span></div>{state.achievements.unlocked.length ? <div className="achievement-list">{state.achievements.unlocked.map((entry) => { const definition = achievementDefinition(entry.id); return <article key={entry.id}><span>◇</span><div><b>{definition?.title ?? entry.id}</b><p>{definition?.description ?? "Локальный trace сохранён."}</p><small>Т.{String(entry.unlockedTick).padStart(3, "0")}</small></div></article>; })}</div> : <p className="empty-note">Первые локальные следы появятся после авторитетных событий дня.</p>}{state.achievements.pendingPlatformTags.length > 0 && <p className="achievement-pending">PENDING MIRROR: {state.achievements.pendingPlatformTags.length}. Теги остаются local-first до подключения реального GamePush browser SDK.</p>}</section>
+        <section className="feedback-ledger" aria-label="Локальная обратная связь"><p className="eyebrow">ТЕПЛОВОЙ СЛЕД / LOCAL FEEDBACK</p><p>Без отправки и без персональных данных: отметь, была ли ясна причина, цена или доступный формат.</p>{state.feedback.consent === "undecided" && <div><button onClick={() => { simulation.setFeedbackConsent("accepted"); refresh(); }}>СОГЛАСЕН НА ЛОКАЛЬНЫЕ ОТМЕТКИ</button><button onClick={() => { simulation.setFeedbackConsent("declined"); refresh(); }}>НЕ СОБИРАТЬ</button></div>}{state.feedback.consent === "accepted" && <div><button onClick={() => markFeedback("cause", "clear")}>ПРИЧИНА ЯСНА</button><button onClick={() => markFeedback("cost", "unclear")}>ЦЕНА НЕЯСНА</button><button onClick={() => markFeedback("accessibility", "clear")}>ФОРМАТ ДОСТУПЕН</button><button onClick={exportFeedback}>ЭКСПОРТ JSON</button></div>}{state.feedback.consent === "declined" && <small>Отметки отключены. Это решение можно изменить после перезапуска локального дня.</small>}</section>
         <div className="journal-list">{state.archive.length ? [...state.archive].reverse().map((entry, index) => <article key={`${entry.tick}-${index}`} className={`journal-entry ${entry.tone}`}><span>Т.{String(entry.tick).padStart(3, "0")}</span><div><b>{entry.title}</b><p>{entry.body}</p></div></article>) : <p className="empty-note">Начни наблюдение — первые следы появятся здесь.</p>}</div>
         {state.unresolved.length > 0 && <div className="service-note"><b>ВИДИМЫЕ SERVICE TRACE</b>{state.unresolved.map((item, index) => <p key={serviceTraceKey(item, index)}>— {item}</p>)}</div>}
       </aside>}

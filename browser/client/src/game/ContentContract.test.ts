@@ -41,4 +41,21 @@ describe("content-version save fallback", () => {
     expect(migration?.state.boundaries[0]?.never).toContain("Не диагностировать");
     expect(migration?.state.policy.active).toEqual([]);
   });
+
+  it("adds deterministic event, tutorial, stewardship and consent-first feedback defaults to a schema 3 save", () => {
+    const legacy = new ThermostatSimulation().snapshot() as unknown as Record<string, unknown>;
+    legacy.schemaVersion = 3;
+    delete legacy.scenarioSeed;
+    delete legacy.event;
+    delete legacy.tutorial;
+    delete legacy.stewardship;
+    delete legacy.feedback;
+    const migration = migrateSavedState(legacy);
+    expect(migration?.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migration?.state.scenarioSeed).toBe(104729);
+    expect(migration?.state.event.state).toBe("dormant");
+    expect(migration?.state.tutorial.current).toBe("observe_heat");
+    expect(migration?.state.stewardship.recognitions).toEqual([]);
+    expect(migration?.state.feedback).toEqual({ consent: "undecided", entries: [] });
+  });
 });

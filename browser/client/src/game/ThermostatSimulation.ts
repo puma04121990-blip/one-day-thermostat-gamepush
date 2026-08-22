@@ -1,10 +1,11 @@
 import { DEFAULT_CONFIGURATION, findConfiguration, previewConfiguration } from "./ConfigurationCatalog";
 import { ACHIEVEMENT_CATALOG, EMPTY_ACHIEVEMENTS, isAchievementTriggered } from "./AchievementCatalog";
 import { CONTENT_VERSION, migrateSavedState, SAVE_SCHEMA_VERSION } from "./ContentContract";
+import { climateEventDefinition, isBranchEmergencyEligible } from "./EventCatalog";
 import { isKnownPolicyId, policyDefinition, previewPolicy } from "./PolicyCatalog";
 import { diagnosticFor, scenarioAt, SENSOR_LAYERS } from "./ScenarioCatalog";
 import { createServiceTask } from "./ServiceCatalog";
-import type { ConfigurationChannel, ConfigurationPreview, DiagnosticStatus, EventPhase, GameState, JournalEntry, PolicyPreview, RouteKind, SensorLayer } from "./types";
+import type { ConfigurationChannel, ConfigurationPreview, DiagnosticStatus, EmergencyAction, EventPhase, FeedbackConsent, FeedbackTopic, GameState, JournalEntry, PolicyPreview, RouteKind, SensorLayer, TutorialBeatId } from "./types";
 
 const SAVE_KEY = "one-day-thermostat.phaser.save.v1";
 const TICK_MS = 200;
@@ -19,6 +20,10 @@ const newConfiguration = () => ({ ...DEFAULT_CONFIGURATION, log: [] });
 const newService = () => ({ tasks: [], unresolvedReasons: [], credits: 0, review: { available: false } });
 const newAchievements = () => ({ ...EMPTY_ACHIEVEMENTS, unlocked: [], pendingPlatformTags: [] });
 const newPolicy = () => ({ active: [], log: [] });
+const newEvent = () => ({ id: "event.none", familyId: "none", seed: 104729, state: "dormant" as const, foreshadowsObserved: [], cooldownUntilTick: 0 });
+const newTutorial = () => ({ current: "observe_heat" as const, completed: [], hintsShown: [] });
+const newStewardship = () => ({ recognitions: [], repeatGate: [] });
+const newFeedback = () => ({ consent: "undecided" as const, entries: [] });
 
 export class ThermostatSimulation {
   private state: GameState;
@@ -36,6 +41,7 @@ export class ThermostatSimulation {
 
   public chooseRoute(route: RouteKind) {
     if (!this.state.started || this.state.phase !== "warning" || this.state.dayComplete) return;
+    if (this.state.event.state === "warning") { this.chooseEmergency(route === "careful" ? "safe" : "direct"); return; }
     const scenario = scenarioAt(this.state.chainIndex);
     const option = route === "careful" ? scenario.careful : scenario.direct;
     const modifier = this.state.configuration.routeModifierId;
@@ -53,8 +59,33 @@ export class ThermostatSimulation {
       this.state.metrics.wear = clamp(this.state.metrics.wear + .06);
     } else {
       this.state.metrics.rhythm = clamp(this.state.metrics.rhythm + .04);
+      this.recordStewardship(`careful.${scenario.id}`, "Бережный маршрут", "Маршрут принял видимую цену и сохранил окно recovery без награды за человека.");
     }
+    this.completeTutorial("compare_routes");
     this.refreshDiagnostic();
+    this.persist();
+  }
+
+  private chooseEmergency(action: EmergencyAction) {
+    const event = climateEventDefinition(this.state.event.id);
+    if (!event || this.state.event.state !== "warning" || !this.state.started) return;
+    this.state.event.state = "active";
+    this.state.event.selectedAction = action;
+    this.state.phase = "active";
+    this.state.options = [];
+    this.phaseTicks = 0;
+    const choice = action === "safe" ? event.safe : event.direct;
+    this.append("event", choice.title, `${choice.benefit}; цена: ${choice.cost}. ${event.reason}`);
+    if (action === "safe") {
+      this.state.metrics.branch = clamp(this.state.metrics.branch - .07);
+      this.state.metrics.rhythm = clamp(this.state.metrics.rhythm + .05);
+      this.recordStewardship("emergency.branch26.safe", "Тихая стабилизация", "Safe-flow и буфер сохранили recovery-window без попытки вернуть идеальный режим.");
+    } else {
+      this.state.metrics.branch = clamp(this.state.metrics.branch - .13);
+      this.state.metrics.network = clamp(this.state.metrics.network + .04);
+      if (!this.state.service.unresolvedReasons.includes("cost.branch_26_resonance")) this.state.service.unresolvedReasons.push("cost.branch_26_resonance");
+    }
+    this.completeTutorial("remember_consequence");
     this.persist();
   }
 
@@ -70,6 +101,8 @@ export class ThermostatSimulation {
   public selectSensor(layer: SensorLayer) {
     if (!SENSOR_LAYERS.some((entry) => entry.id === layer)) return false;
     this.state.sensorLayer = layer;
+    if (layer === "heat") this.completeTutorial("observe_heat");
+    if (layer === "vibration") this.completeTutorial("read_vibration");
     this.refreshDiagnostic();
     this.persist();
     return true;
@@ -90,6 +123,24 @@ export class ThermostatSimulation {
     this.state.service.pendingTaskId = taskId;
     this.persist();
     return true;
+  }
+
+  public setFeedbackConsent(consent: FeedbackConsent) {
+    this.state.feedback.consent = consent;
+    if (consent === "declined") this.state.feedback.entries = [];
+    this.append("feedback", "Тепловой след: выбор сохранён", consent === "accepted" ? "Локальные, анонимные отметки понимания можно сохранить и экспортировать вручную." : "Никакие feedback-отметки не будут собираться.");
+    this.persist();
+  }
+
+  public recordFeedback(topic: FeedbackTopic, understanding: "clear" | "unclear") {
+    if (this.state.feedback.consent !== "accepted") return false;
+    this.state.feedback.entries.push({ tick: this.state.tick, topic, understanding });
+    this.persist();
+    return true;
+  }
+
+  public exportFeedback() {
+    return JSON.stringify({ schemaVersion: 1, consent: this.state.feedback.consent, entries: this.state.feedback.entries }, null, 2);
   }
 
   public markPlatformAchievementSynced(achievementId: string) {
@@ -125,6 +176,7 @@ export class ThermostatSimulation {
       phase: "prologue",
       chainIndex: 0,
       tick: 0,
+      scenarioSeed: 104729,
       chainTitle: scenario.title,
       trace: scenario.trace,
       caption: scenario.caption,
@@ -140,6 +192,10 @@ export class ThermostatSimulation {
       scenario: { id: scenario.id, foreshadows: [...scenario.foreshadows], cooldownFamily: scenario.cooldownFamily },
       boundaries: [scenario.boundary],
       policy: newPolicy(),
+      event: newEvent(),
+      tutorial: newTutorial(),
+      stewardship: newStewardship(),
+      feedback: newFeedback(),
       dayComplete: false
     };
   }
@@ -153,6 +209,7 @@ export class ThermostatSimulation {
     this.materializeServiceTasks();
     this.updateMetrics();
     this.advancePolicies();
+    this.advanceEventDirector();
     if (this.state.phase === "prologue" && this.phaseTicks >= 7) {
       const scenario = scenarioAt(this.state.chainIndex);
       this.state.phase = "warning";
@@ -162,10 +219,20 @@ export class ThermostatSimulation {
     } else if (this.state.phase === "active" && this.phaseTicks >= 6) {
       this.state.phase = "aftermath";
       this.phaseTicks = 0;
-      const latestRoute = this.state.archive.filter((entry) => entry.tone === "route").at(-1)?.title;
-      const scenario = scenarioAt(this.state.chainIndex);
-      this.append("archive", scenario.archive, latestRoute === scenario.careful.title ? scenario.carefulResult : scenario.directResult);
+      const activeEvent = climateEventDefinition(this.state.event.id);
+      if (this.state.event.state === "active" && activeEvent) {
+        this.state.event.state = "stabilized";
+        this.append("archive", activeEvent.title, this.state.event.selectedAction === "safe" ? activeEvent.safeOutcome : activeEvent.directOutcome);
+      } else {
+        const latestRoute = this.state.archive.filter((entry) => entry.tone === "route").at(-1)?.title;
+        const scenario = scenarioAt(this.state.chainIndex);
+        this.append("archive", scenario.archive, latestRoute === scenario.careful.title ? scenario.carefulResult : scenario.directResult);
+      }
     } else if (this.state.phase === "aftermath" && this.phaseTicks >= 8) {
+      if (this.state.event.state === "stabilized") {
+        this.state.event.state = "aftermath";
+        this.state.event.cooldownUntilTick = this.state.tick + (climateEventDefinition(this.state.event.id)?.cooldownTicks ?? 0);
+      }
       this.advanceChain();
     }
     this.refreshDiagnostic();
@@ -194,9 +261,55 @@ export class ThermostatSimulation {
     this.state.scenario = { id: scenario.id, foreshadows: [...scenario.foreshadows], cooldownFamily: scenario.cooldownFamily };
     this.state.boundaries = [scenario.boundary];
     this.state.sensorLayer = "heat";
+    this.state.event = { ...newEvent(), seed: this.state.scenarioSeed, cooldownUntilTick: this.state.event.cooldownUntilTick };
     this.phaseTicks = 0;
     this.refreshDiagnostic();
     this.append("trace", scenario.title, `Новая цепочка начинается с двух независимых предвестников: ${scenario.foreshadows.join(" ")}`);
+  }
+
+  private advanceEventDirector() {
+    if (isBranchEmergencyEligible(this.state)) {
+      const event = climateEventDefinition("event.branch_26_quiet");
+      if (!event) return;
+      this.state.event = {
+        id: event.id,
+        familyId: event.familyId,
+        seed: this.state.scenarioSeed,
+        state: "foreshadow",
+        startedTick: this.state.tick,
+        foreshadowsObserved: [...event.foreshadows],
+        cooldownUntilTick: this.state.tick + event.cooldownTicks
+      };
+      this.append("event", "Предвестники ветви 26", `${event.foreshadows[0]} ${event.foreshadows[1]} Сначала можно выбрать тихую стабилизацию или короткую безопасную отсечку.`);
+      return;
+    }
+    if (this.state.event.state !== "foreshadow" || !this.state.event.startedTick || this.state.tick - this.state.event.startedTick < 3) return;
+    const event = climateEventDefinition(this.state.event.id);
+    if (!event) return;
+    this.state.event.state = "warning";
+    this.state.options = [event.safe, event.direct];
+    this.append("event", "Ветвь 26: локальное предупреждение", `${event.reason} Два безопасных маршрута видимы до escalation.`);
+  }
+
+  private completeTutorial(beat: TutorialBeatId) {
+    if (this.state.tutorial.completed.includes(beat)) return;
+    this.state.tutorial.completed.push(beat);
+    const order: TutorialBeatId[] = ["observe_heat", "read_vibration", "compare_routes", "remember_consequence", "complete"];
+    const next = order[order.indexOf(beat) + 1];
+    this.state.tutorial.current = next ?? "complete";
+    const copy = beat === "read_vibration"
+      ? "Вибрация стала вторым независимым источником гипотезы."
+      : beat === "compare_routes"
+        ? "Маршруты различаются ценой, а не правильностью."
+        : "Дом сохранил причинный след без оценки игрока.";
+    this.append("tutorial", "Туториал: след сохранён", copy);
+  }
+
+  private recordStewardship(id: string, title: string, reason: string) {
+    if (this.state.stewardship.repeatGate.includes(id)) return;
+    this.state.stewardship.repeatGate.push(id);
+    this.state.stewardship.recognitions.push({ id, tick: this.state.tick, title, reason });
+    this.append("stewardship", title, reason);
   }
 
   private updateMetrics() {
