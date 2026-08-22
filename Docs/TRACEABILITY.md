@@ -7,6 +7,8 @@
 | Нормализованные `T/M/A/S/H/E/W/R/B` вместо ложной инженерной точности | `ZoneState`, `ComponentState`, route/load values | Scenario/diagnostic review | UI не показывает ложные градусы/диагнозы. |
 | 2 причины максимум | `DiagnosticReasoning` сортирует/обрезает до двух | Core smoke + UI check | На всех event phases. |
 | 2 маршрута с ценой | `RoutePreview`, `ScenarioDefinition.Routes` | `ScenarioDefinition.IsFair` | Для каждого authored scenario. |
+| Сквозная кампания | `EventDirector`, `CampaignIndex`, three-chain transitions | `CampaignProgressionReachesStagedReturnBaseline` | Порог → Серебро → Возврат завершается recoverable baseline. |
+| Journal / результат | `EventState.LastOutcomeKey`, UI Journal/Archive | DTO round-trip + Unity manual pass | Последствие читаемо, сохраняется и не оценивает жильца. |
 | Жильцы — агенты | `ResidentRhythmState`, walkthrough boundary table | Narrative/PR review | Нет hidden diagnosis/obedience/command. |
 | Добровольная adaptation | `ResidentRhythmSystem` | PlayMode fixture | Не обязательна для успеха. |
 | Component wear/hysteresis/recovery | `ComponentStressSystem`, `ComponentState` | EditMode stage/recovery tests | No unrecoverable invisible failure. |
@@ -22,4 +24,4 @@
 
 ## Minimum fixture set
 
-`CoreSmokeTests` currently validates deterministic route outcome, protective Governor block, DTO map round-trip and fairness of the full catalog. Перед публикацией добавьте Unity fixtures для: surface lag, silver corridor moisture, uneven branch start-stop, blackout staged return, save/load each event phase, policy active continuity, corrupt current/backup recovery, GamePush offline fallback и consent revoke.
+`CoreSmokeTests` validates deterministic route outcome, protective Governor block, DTO map round-trip, the three-chain campaign through staged return and fairness of the full catalog. Перед публикацией добавьте Unity fixtures для: surface lag, silver corridor moisture, uneven branch start-stop, blackout staged return, save/load each event phase, policy active continuity, corrupt current/backup recovery, GamePush offline fallback и consent revoke.

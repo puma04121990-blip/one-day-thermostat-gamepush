@@ -153,38 +153,151 @@ namespace OneDayThermostat.Gameplay.Climate
 
     public sealed class EventDirector : IAuthoritativeSystem
     {
+        private const long AftermathTicksBeforeNextChain = 8;
+        private const long ActiveTicksBeforeResolution = 6;
+
         public void Step(SimulationWorld world, float deltaSeconds)
+        {
+            if (world.Event.Phase == EventPhase.Aftermath && world.Tick - world.Event.PhaseEnteredTick >= AftermathTicksBeforeNextChain)
+            {
+                AdvanceCampaign(world);
+                return;
+            }
+
+            if (world.Event.ActiveChainId == "prologue.open_door")
+            {
+                StepOpenDoor(world);
+                return;
+            }
+            if (world.Event.ActiveChainId == "event.silver_corridor")
+            {
+                StepSilverCorridor(world);
+                return;
+            }
+            if (world.Event.ActiveChainId == "event.blackout_return")
+            {
+                StepBlackoutReturn(world);
+            }
+        }
+
+        private static void StepOpenDoor(SimulationWorld world)
         {
             var entrance = world.Zone("entrance");
             var direct = world.Route("route.direct_lower");
             var quiet = world.Route("route.quiet_middle");
-
             if (world.Event.Phase == EventPhase.Foreshadow)
             {
-                world.Event.FirstForeshadowObserved = entrance.AirTemperature < .30f;
-                world.Event.SecondForeshadowObserved = entrance.Airflow > .38f;
-                if (world.Event.FirstForeshadowObserved && world.Event.SecondForeshadowObserved && world.Tick >= 4)
-                {
-                    Transition(world, EventPhase.Warning);
-                }
+                world.Event.FirstForeshadowObserved |= entrance.AirTemperature < .34f;
+                world.Event.SecondForeshadowObserved |= entrance.Airflow > .38f;
+                if (world.Event.FirstForeshadowObserved && world.Event.SecondForeshadowObserved && world.Tick >= 4) Transition(world, EventPhase.Warning);
             }
             else if (world.Event.Phase == EventPhase.Warning && (direct.Openness > .55f || quiet.Openness > .45f))
             {
                 Transition(world, EventPhase.Active);
             }
-            else if (world.Event.Phase == EventPhase.Active && entrance.AirTemperature > .33f)
+            else if (world.Event.Phase == EventPhase.Active && world.Tick - world.Event.PhaseEnteredTick >= ActiveTicksBeforeResolution)
             {
-                Transition(world, EventPhase.Aftermath);
-                world.Archive.UnlockedEntries.Add("archive.threshold_route");
-                if (quiet.Openness > .28f && direct.Openness < .64f)
-                {
-                    world.Archive.StewardshipCredits += 2;
-                }
-                else
-                {
-                    world.Archive.UnresolvedCosts.Add("cost.branch_26_resonance");
-                }
+                Resolve(world, "archive.threshold_route", quiet.Openness > .28f && direct.Openness < .64f, "cost.branch_26_resonance");
             }
+        }
+
+        private static void StepSilverCorridor(SimulationWorld world)
+        {
+            var kitchen = world.Zone("lera_kitchen");
+            var drain = world.Route("route.drain_quiet");
+            var direct = world.Route("route.direct_lower");
+            if (world.Event.Phase == EventPhase.Foreshadow)
+            {
+                world.Event.FirstForeshadowObserved |= kitchen.Moisture > .50f;
+                world.Event.SecondForeshadowObserved |= world.Component("component.kitchen_drain").RecentStress > .34f;
+                if (world.Event.FirstForeshadowObserved && world.Event.SecondForeshadowObserved) Transition(world, EventPhase.Warning);
+            }
+            else if (world.Event.Phase == EventPhase.Warning && (drain.Openness > .42f || direct.Openness > .55f))
+            {
+                Transition(world, EventPhase.Active);
+            }
+            else if (world.Event.Phase == EventPhase.Active && world.Tick - world.Event.PhaseEnteredTick >= ActiveTicksBeforeResolution)
+            {
+                var quietSuccess = drain.Openness > .42f && direct.Openness < .50f;
+                Resolve(world, "archive.silver_corridor", quietSuccess, "cost.kitchen_queue");
+            }
+        }
+
+        private static void StepBlackoutReturn(SimulationWorld world)
+        {
+            var quiet = world.Route("route.quiet_middle");
+            var direct = world.Route("route.direct_lower");
+            if (world.Event.Phase == EventPhase.Foreshadow)
+            {
+                world.Event.FirstForeshadowObserved |= world.Component("component.network_main").RecentStress > .42f;
+                world.Event.SecondForeshadowObserved |= world.Zone("west_wall").SurfaceHeat > .55f;
+                if (world.Event.FirstForeshadowObserved && world.Event.SecondForeshadowObserved) Transition(world, EventPhase.Warning);
+            }
+            else if (world.Event.Phase == EventPhase.Warning && (quiet.Openness > .42f || direct.Openness > .58f))
+            {
+                Transition(world, EventPhase.Active);
+            }
+            else if (world.Event.Phase == EventPhase.Active && world.Tick - world.Event.PhaseEnteredTick >= ActiveTicksBeforeResolution)
+            {
+                var stagedReturn = quiet.Openness > .42f && direct.Openness < .52f;
+                Resolve(world, "archive.staged_return", stagedReturn, "cost.second_network_peak");
+            }
+        }
+
+        private static void Resolve(SimulationWorld world, string archiveKey, bool carefulRoute, string unresolvedCost)
+        {
+            Transition(world, EventPhase.Aftermath);
+            world.Event.LastOutcomeKey = carefulRoute ? archiveKey : unresolvedCost;
+            world.Archive.UnlockedEntries.Add(archiveKey);
+            if (carefulRoute) world.Archive.StewardshipCredits += 2;
+            else world.Archive.UnresolvedCosts.Add(unresolvedCost);
+        }
+
+        private static void AdvanceCampaign(SimulationWorld world)
+        {
+            if (world.Event.CampaignIndex == 0)
+            {
+                BeginSilverCorridor(world);
+                return;
+            }
+            if (world.Event.CampaignIndex == 1)
+            {
+                BeginBlackoutReturn(world);
+                return;
+            }
+            world.Event.Phase = EventPhase.Cooldown;
+            world.Event.LastOutcomeKey = "baseline.day_complete";
+            world.Archive.UnlockedEntries.Add("archive.day_complete");
+        }
+
+        private static void BeginSilverCorridor(SimulationWorld world)
+        {
+            world.Event.CampaignIndex = 1;
+            world.Event.ActiveChainId = "event.silver_corridor";
+            world.Event.Phase = EventPhase.Foreshadow;
+            world.Event.PhaseEnteredTick = world.Tick;
+            world.Event.FirstForeshadowObserved = false;
+            world.Event.SecondForeshadowObserved = false;
+            world.Route("route.direct_lower").Openness = .18f;
+            world.Route("route.drain_quiet").Openness = .05f;
+            world.Zone("lera_kitchen").Moisture = .68f;
+            world.Zone("lera_kitchen").ActiveLoad = .58f;
+            world.Component("component.kitchen_drain").RecentStress = .58f;
+        }
+
+        private static void BeginBlackoutReturn(SimulationWorld world)
+        {
+            world.Event.CampaignIndex = 2;
+            world.Event.ActiveChainId = "event.blackout_return";
+            world.Event.Phase = EventPhase.Foreshadow;
+            world.Event.PhaseEnteredTick = world.Tick;
+            world.Event.FirstForeshadowObserved = false;
+            world.Event.SecondForeshadowObserved = false;
+            world.Route("route.direct_lower").Openness = .12f;
+            world.Route("route.quiet_middle").Openness = .10f;
+            world.Component("component.network_main").RecentStress = .62f;
+            world.Component("component.network_main").Wear = Math.Max(world.Component("component.network_main").Wear, .46f);
+            world.Zone("west_wall").SurfaceHeat = .68f;
         }
 
         private static void Transition(SimulationWorld world, EventPhase next)

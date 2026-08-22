@@ -90,7 +90,9 @@ namespace OneDayThermostat.Core
         public string ActiveChainId = "prologue.open_door";
         public EventPhase Phase = EventPhase.Dormant;
         public int ScenarioSeed = 20260822;
+        public int CampaignIndex;
         public long PhaseEnteredTick;
+        public string LastOutcomeKey = string.Empty;
         public bool FirstForeshadowObserved;
         public bool SecondForeshadowObserved;
         public readonly Dictionary<string, long> CooldownUntilTick = new Dictionary<string, long>();
@@ -102,7 +104,9 @@ namespace OneDayThermostat.Core
                 ActiveChainId = ActiveChainId,
                 Phase = Phase,
                 ScenarioSeed = ScenarioSeed,
+                CampaignIndex = CampaignIndex,
                 PhaseEnteredTick = PhaseEnteredTick,
+                LastOutcomeKey = LastOutcomeKey,
                 FirstForeshadowObserved = FirstForeshadowObserved,
                 SecondForeshadowObserved = SecondForeshadowObserved
             };

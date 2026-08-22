@@ -31,7 +31,9 @@ namespace OneDayThermostat.Core
         public string activeChainId = string.Empty;
         public EventPhase phase;
         public int scenarioSeed;
+        public int campaignIndex;
         public long phaseEnteredTick;
+        public string lastOutcomeKey = string.Empty;
         public bool firstForeshadowObserved;
         public bool secondForeshadowObserved;
         public CooldownSaveDTO[] cooldowns = Array.Empty<CooldownSaveDTO>();
@@ -112,7 +114,9 @@ namespace OneDayThermostat.Core
                     activeChainId = world.Event.ActiveChainId,
                     phase = world.Event.Phase,
                     scenarioSeed = world.Event.ScenarioSeed,
+                    campaignIndex = world.Event.CampaignIndex,
                     phaseEnteredTick = world.Event.PhaseEnteredTick,
+                    lastOutcomeKey = world.Event.LastOutcomeKey,
                     firstForeshadowObserved = world.Event.FirstForeshadowObserved,
                     secondForeshadowObserved = world.Event.SecondForeshadowObserved,
                     cooldowns = world.Event.CooldownUntilTick.Select(x => new CooldownSaveDTO { family = x.Key, untilTick = x.Value }).ToArray()
@@ -152,7 +156,9 @@ namespace OneDayThermostat.Core
             world.Event.ActiveChainId = root.events.activeChainId;
             world.Event.Phase = root.events.phase;
             world.Event.ScenarioSeed = root.events.scenarioSeed;
+            world.Event.CampaignIndex = root.events.campaignIndex;
             world.Event.PhaseEnteredTick = root.events.phaseEnteredTick;
+            world.Event.LastOutcomeKey = root.events.lastOutcomeKey;
             world.Event.FirstForeshadowObserved = root.events.firstForeshadowObserved;
             world.Event.SecondForeshadowObserved = root.events.secondForeshadowObserved;
             foreach (var cooldown in root.events.cooldowns ?? Array.Empty<CooldownSaveDTO>()) world.Event.CooldownUntilTick[cooldown.family] = cooldown.untilTick;
