@@ -26,7 +26,9 @@ namespace OneDayThermostat.Presentation.Runtime
         private EventPhase _lastEventPhase;
 
         public SimulationSnapshot CurrentSnapshot { get; private set; }
+        public bool IsSessionStarted { get; private set; }
         public event Action<SimulationSnapshot> SnapshotUpdated;
+        public event Action SessionStarted;
 
         private void Awake()
         {
@@ -42,7 +44,8 @@ namespace OneDayThermostat.Presentation.Runtime
 
         private void Update()
         {
-            _accumulator += Time.unscaledDeltaTime;
+            if (!IsSessionStarted) return;
+            _accumulator += Time.deltaTime;
             while (_accumulator >= SimulationOrchestrator.TickSeconds)
             {
                 _accumulator -= SimulationOrchestrator.TickSeconds;
@@ -58,6 +61,15 @@ namespace OneDayThermostat.Presentation.Runtime
         private void OnApplicationPause(bool paused)
         {
             if (paused) Save();
+        }
+
+        public void StartSession()
+        {
+            if (IsSessionStarted) return;
+            IsSessionStarted = true;
+            _accumulator = 0f;
+            SessionStarted?.Invoke();
+            Publish(_world.CreateSnapshot());
         }
 
         public void SetRoute(string routeId, float openness)

@@ -16,6 +16,8 @@
 | Rules bounded | `PolicyRuleDefinition.IsWellFormed` | Unit test missing `UNTIL` blocks | UI has Preview/Commit parity. |
 | Governor not silent | `SafetyGovernor`, `PolicyPreviewDTO`, Policy Log | Unsafe pulse smoke test | UI displays reason+alternative. |
 | WebGL-safe presentation | `ThermostatShowcaseUI`, generated art, CPU snapshot flow | Unity WebGL smoke | No compute shader required. |
+| Explicit player start | `UnitySimulationDriver.StartSession`, onboarding overlay | Unity PlayMode start/skip pass | No tick or GameplayStart behind onboarding. |
+| Platform pause parity | `GamePlatformBootstrap` + `Time.deltaTime` driver | WebGL pause/resume pass | No authoritative tick advances under platform pause. |
 | Non-colour accessibility | Sensor atlas, captions, labels, low-sensory toggle | Manual accessibility run | Critical cue readable with caption only. |
 | Local-first GamePush sync | `IGamePlatform`, `ProgressSyncController` | Mock/offline test | Cloud failure cannot lose local state. |
 | Consent analytics | `IGamePlatform.Track` gate | Platform mock | No event before consent/after revoke. |

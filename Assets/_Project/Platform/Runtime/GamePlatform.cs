@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using OneDayThermostat.Presentation.Runtime;
 using UnityEngine;
 
 namespace OneDayThermostat.Platform
@@ -165,16 +166,42 @@ namespace OneDayThermostat.Platform
         [SerializeField] private bool useGamePushWhenInstalled = true;
         [SerializeField] private bool telemetryConsent;
         public IGamePlatform Platform { get; private set; }
+        private UnitySimulationDriver _driver;
+        private bool _platformReady;
+        private bool _sessionStarted;
 
         private void Awake()
         {
+            _driver = GetComponent<UnitySimulationDriver>();
+            if (_driver != null) _driver.SessionStarted += HandleSessionStarted;
             Platform = useGamePushWhenInstalled ? (IGamePlatform)new GamePushPlatformAdapter() : new NullGamePlatform();
             Platform.SetTelemetryConsent(telemetryConsent);
             Platform.Paused += () => Time.timeScale = 0f;
             Platform.Resumed += () => Time.timeScale = 1f;
-            Platform.Initialize(() => Platform.NotifyGameplayStarted(), Debug.LogWarning);
+            Platform.Initialize(HandlePlatformReady, Debug.LogWarning);
         }
 
-        private void OnDestroy() => Platform?.NotifyGameplayStopped();
+        private void HandlePlatformReady()
+        {
+            _platformReady = true;
+            NotifyGameplayStartedIfReady();
+        }
+
+        private void HandleSessionStarted()
+        {
+            _sessionStarted = true;
+            NotifyGameplayStartedIfReady();
+        }
+
+        private void NotifyGameplayStartedIfReady()
+        {
+            if (_platformReady && _sessionStarted) Platform.NotifyGameplayStarted();
+        }
+
+        private void OnDestroy()
+        {
+            if (_driver != null) _driver.SessionStarted -= HandleSessionStarted;
+            if (_sessionStarted) Platform?.NotifyGameplayStopped();
+        }
     }
 }

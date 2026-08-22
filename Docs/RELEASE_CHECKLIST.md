@@ -17,7 +17,7 @@
 |---|---|---|
 | Core smoke-test | Детерминизм, Governor, DTO round-trip, fairness catalog: PASS | Готово в sandbox. |
 | Unity EditMode | Component hysteresis, routes, event cooldown, policy preview/commit, migration fixture | Требует Unity Editor. |
-| Unity PlayMode | UI, input, auto-bootstrap, save/load в Foreshadow/Warning/Aftermath | Требует Unity Editor. |
+| Unity PlayMode | UI, input, auto-bootstrap, onboarding start/skip, save/load в Foreshadow/Warning/Aftermath | Требует Unity Editor. |
 | Corrupt current save | Backup загружается; evidence не уничтожается | Требует Unity Editor/fixture. |
 | All scenario definitions | 2 independent foreshadows, 2 visible routes, recovery baseline, low-sensory | Catalog validator: готово; authored SO: перед выпуском. |
 | Agency review | Нет command/score/diagnosis для жителя | Требует human narrative review. |
@@ -26,7 +26,7 @@
 
 | Проверка | Ожидаемый результат | Статус для 0.1.0 |
 |---|---|---|
-| Keyboard/mouse/touch/controller navigation | Все route/policy/settings action доступны; focus visible | Требует Unity device pass. |
+| Keyboard/mouse/touch/controller navigation | Onboarding, route/policy/settings actions доступны; focus visible | Требует Unity device pass. |
 | Non-colour redundancy | Heat/Air/Vibration/Moisture/Network/Surface имеют shape/pattern/label/caption | Дизайн и asset atlas: готово; runtime pass требуется. |
 | Reduced motion | Декоративная пульсация отсутствует, смысл и решения сохранены | UI toggle: готово; Unity pass требуется. |
 | Low-sensory | Captions/labels/patterns достаточны для каждого critical cue | UI fallback: готово; scripted playtest требуется. |
@@ -38,7 +38,7 @@
 |---|---|---|
 | Official plugin imported | Plugin по официальной инструкции; Project ID/Public Token локальны | Блокер: нужны данные владельца. |
 | `GAMEPUSH_SDK` branch | Build компилируется и `GP_Init.OnReady` → `GP_Game.GameReady` происходит один раз | Блокер: GamePush test project. |
-| Platform lifecycle | pause/resume не дублирует simulation; GameplayStart/Stop корректны | Блокер: WebGL test. |
+| Platform lifecycle | GameplayStart приходит только после player start action; pause/resume не двигает simulation; GameplayStop корректен | Блокер: WebGL test. |
 | Cloud mirror | Valid compact DTO sync; offline/cloud error сохраняет local session | Блокер: GamePush test. |
 | Consent analytics | Без opt-in нет analytics Goal; revoke немедленно останавливает future sends | Блокер: GamePush test. |
 | Achievements | Archive tag unlock после local Archive change, duplicate безопасен | Блокер: GamePush dashboard tags. |
