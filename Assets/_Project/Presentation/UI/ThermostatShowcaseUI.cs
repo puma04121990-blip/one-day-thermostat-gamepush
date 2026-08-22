@@ -3,6 +3,7 @@ using System.Linq;
 using OneDayThermostat.Core;
 using OneDayThermostat.Gameplay.Automation;
 using OneDayThermostat.Presentation.Runtime;
+using OneDayThermostat.Platform;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -16,6 +17,8 @@ namespace OneDayThermostat.Presentation.UI
         private readonly Color _amber = new Color(.89f, .54f, .18f, 1f);
         private readonly Color _cyan = new Color(.55f, .84f, .91f, 1f);
         private UnitySimulationDriver _driver;
+        private GamePlatformBootstrap _platformBootstrap;
+        private GameObject _platformPauseOverlay;
         private SensorMode _sensor = SensorMode.Heat;
         private Text _status;
         private Text _diagnostics;
@@ -36,6 +39,9 @@ namespace OneDayThermostat.Presentation.UI
         private Image _sensorWash;
         private Toggle _reducedMotion;
         private Toggle _lowSensory;
+        private Toggle _keyboardHints;
+        private Text _textScaleLabel;
+        private readonly System.Collections.Generic.Dictionary<Text, int> _baseFontSizes = new System.Collections.Generic.Dictionary<Text, int>();
         private PolicyPreviewDTO _lastPolicyPreview;
         private ConfigurationPreviewDTO _lastConfigurationPreview;
         private string _candidateFirmware = "firmware.surface_memory";
@@ -50,9 +56,39 @@ namespace OneDayThermostat.Presentation.UI
             Build();
         }
 
+        private void Start()
+        {
+            _platformBootstrap = GetComponent<GamePlatformBootstrap>();
+            if (_platformBootstrap == null || _platformBootstrap.Platform == null) return;
+            _platformBootstrap.Platform.Paused += ShowPlatformPause;
+            _platformBootstrap.Platform.Resumed += HidePlatformPause;
+        }
+
         private void OnDestroy()
         {
             if (_driver != null) _driver.SnapshotUpdated -= Render;
+            if (_platformBootstrap != null && _platformBootstrap.Platform != null)
+            {
+                _platformBootstrap.Platform.Paused -= ShowPlatformPause;
+                _platformBootstrap.Platform.Resumed -= HidePlatformPause;
+            }
+        }
+
+        private void Update()
+        {
+            if (_driver == null || _driver.Accessibility == null || !_driver.Accessibility.keyboardHints || _onboardingOverlay != null && _onboardingOverlay.activeSelf) return;
+            if (Input.GetKeyDown(KeyCode.Alpha1)) SelectSensor(SensorMode.Heat);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) SelectSensor(SensorMode.Air);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) SelectSensor(SensorMode.Vibration);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) SelectSensor(SensorMode.Moisture);
+            if (Input.GetKeyDown(KeyCode.Alpha5)) SelectSensor(SensorMode.Network);
+            if (Input.GetKeyDown(KeyCode.Alpha6)) SelectSensor(SensorMode.Surface);
+            if (Input.GetKeyDown(KeyCode.Q)) CommitPrimaryRoute();
+            if (Input.GetKeyDown(KeyCode.E)) CommitSecondaryRoute();
+            if (Input.GetKeyDown(KeyCode.R)) _reducedMotion.isOn = !_reducedMotion.isOn;
+            if (Input.GetKeyDown(KeyCode.L)) _lowSensory.isOn = !_lowSensory.isOn;
+            if (Input.GetKeyDown(KeyCode.Minus)) AdjustTextScale(-.05f);
+            if (Input.GetKeyDown(KeyCode.Equals)) AdjustTextScale(.05f);
         }
 
         private void Build()
@@ -86,7 +122,7 @@ namespace OneDayThermostat.Presentation.UI
             _status = CreateText(titlePanel, "Status", "Т‑3 · Инициализация датчиков", 17, Color.white, TextAnchor.LowerLeft, new Vector2(24, 14), new Vector2(-24, 54));
 
             var leftPanel = CreatePanel(canvasRoot.transform, "Sensors", _slate);
-            Stretch(leftPanel, 0, 0, 0, 1, 28, 200, 330, -130);
+            Stretch(leftPanel, 0, 0, 0, 1, 28, 300, 330, -130);
             CreateText(leftPanel, "Heading", "СЕНСОРНЫЙ СЛОЙ", 17, _cyan, TextAnchor.UpperLeft, new Vector2(18, -14), new Vector2(-18, -42));
             var sensorNames = new[] { "Тепло", "Воздух", "Вибрация", "Влага", "Сеть", "Поверхность" };
             for (var i = 0; i < sensorNames.Length; i++)
@@ -130,17 +166,51 @@ namespace OneDayThermostat.Presentation.UI
             Stretch(_serviceAction.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -692, -18, -732);
 
             var settings = CreatePanel(canvasRoot.transform, "Accessibility", _slate);
-            Stretch(settings, 0, 0, 0, 0, 28, 24, 330, 174);
+            Stretch(settings, 0, 0, 0, 0, 28, 24, 330, 274);
             CreateText(settings, "Heading", "ДОСТУПНОСТЬ", 16, _cyan, TextAnchor.UpperLeft, new Vector2(18, -12), new Vector2(-18, -38));
             _reducedMotion = CreateToggle(settings, "ReducedMotion", "Снизить движение", 0);
             _lowSensory = CreateToggle(settings, "LowSensory", "Low-sensory режим", 1);
+            _keyboardHints = CreateToggle(settings, "KeyboardHints", "Показывать keyboard hints", 2);
+            _textScaleLabel = CreateText(settings, "TextScale", "ТЕКСТ: 100%", 14, _amber, TextAnchor.MiddleCenter, new Vector2(18, 44), new Vector2(-18, 76));
+            var smallerText = CreateButton(settings, "TextSmaller", "A−", () => AdjustTextScale(-.05f));
+            Stretch(smallerText.GetComponent<RectTransform>(), 0, 0, .5f, 0, 18, 18, -8, 48);
+            var largerText = CreateButton(settings, "TextLarger", "A+", () => AdjustTextScale(.05f));
+            Stretch(largerText.GetComponent<RectTransform>(), .5f, 0, 1, 0, 8, 18, -18, 48);
             _reducedMotion.onValueChanged.AddListener(_ => ApplyAccessibility());
             _lowSensory.onValueChanged.AddListener(_ => ApplyAccessibility());
+            _keyboardHints.onValueChanged.AddListener(value => _driver.SetKeyboardHints(value));
+            ApplyAccessibilityProfileUi();
 
             _archive = CreateText(canvasRoot.transform, "Archive", "АРХИВ: первый поток открыт", 14, new Color(.88f, .91f, .92f), TextAnchor.LowerRight, new Vector2(1300, 28), new Vector2(-28, 72));
             _achievements = CreateText(canvasRoot.transform, "Achievements", "ДОСТИЖЕНИЯ: локальный журнал готов", 14, _amber, TextAnchor.LowerLeft, new Vector2(356, 28), new Vector2(1020, 72));
             BuildOnboarding(canvasRoot.transform);
+            BuildPlatformPauseOverlay(canvasRoot.transform);
+            foreach (var text in canvasRoot.GetComponentsInChildren<Text>(true)) _baseFontSizes[text] = text.fontSize;
+            ApplyTextScale(_driver.Accessibility != null ? _driver.Accessibility.textScale : 1f);
             Render(_driver.CurrentSnapshot);
+        }
+
+        private void BuildPlatformPauseOverlay(Transform canvasRoot)
+        {
+            _platformPauseOverlay = new GameObject("PlatformPauseOverlay", typeof(RectTransform));
+            _platformPauseOverlay.transform.SetParent(canvasRoot, false);
+            var wash = CreateImage(_platformPauseOverlay.transform, "PauseWash", new Color(.01f, .03f, .05f, .84f));
+            Stretch(wash.rectTransform, 0, 0, 1, 1, 0, 0, 0, 0);
+            var card = CreatePanel(_platformPauseOverlay.transform, "PauseCard", _slate);
+            Stretch(card, .5f, .5f, .5f, .5f, -300, -116, 300, 116);
+            CreateText(card, "Heading", "ПАУЗА ПЛАТФОРМЫ", 24, _amber, TextAnchor.UpperCenter, new Vector2(20, -28), new Vector2(-20, -64));
+            CreateText(card, "Body", "Течение дня остановлено. После возврата продолжится тот же сохранённый такт — без скрытого ускорения.", 16, Color.white, TextAnchor.UpperCenter, new Vector2(30, -82), new Vector2(-30, -170));
+            _platformPauseOverlay.SetActive(false);
+        }
+
+        private void ShowPlatformPause()
+        {
+            if (_platformPauseOverlay != null) _platformPauseOverlay.SetActive(true);
+        }
+
+        private void HidePlatformPause()
+        {
+            if (_platformPauseOverlay != null) _platformPauseOverlay.SetActive(false);
         }
 
         private void BuildOnboarding(Transform canvasRoot)
@@ -198,6 +268,7 @@ namespace OneDayThermostat.Presentation.UI
         {
             _driver.StartSession();
             if (_onboardingOverlay != null) _onboardingOverlay.SetActive(false);
+            if (EventSystem.current != null && _routeA != null) EventSystem.current.SetSelectedGameObject(_routeA.gameObject);
         }
 
         private void Render(SimulationSnapshot snapshot)
@@ -381,6 +452,29 @@ namespace OneDayThermostat.Presentation.UI
         private void ApplyAccessibility()
         {
             _driver.SetAccessibility(_reducedMotion.isOn, _lowSensory.isOn);
+        }
+
+        private void ApplyAccessibilityProfileUi()
+        {
+            var profile = _driver.Accessibility;
+            if (profile == null) return;
+            _reducedMotion.SetIsOnWithoutNotify(profile.reducedMotion);
+            _lowSensory.SetIsOnWithoutNotify(profile.lowSensory);
+            _keyboardHints.SetIsOnWithoutNotify(profile.keyboardHints);
+            ApplyTextScale(profile.textScale);
+        }
+
+        private void AdjustTextScale(float delta)
+        {
+            var next = Mathf.Clamp((_driver.Accessibility != null ? _driver.Accessibility.textScale : 1f) + delta, .85f, 1.35f);
+            _driver.SetTextScale(next);
+            ApplyTextScale(next);
+        }
+
+        private void ApplyTextScale(float scale)
+        {
+            foreach (var pair in _baseFontSizes) if (pair.Key != null) pair.Key.fontSize = Mathf.RoundToInt(pair.Value * scale);
+            if (_textScaleLabel != null) _textScaleLabel.text = "ТЕКСТ: " + Mathf.RoundToInt(scale * 100f) + "%";
         }
 
         private static Color SensorColor(SensorMode sensor)

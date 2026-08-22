@@ -24,6 +24,9 @@
 | Explicit player start | `UnitySimulationDriver.StartSession`, onboarding overlay | Unity PlayMode start/skip pass | No tick or GameplayStart behind onboarding. |
 | Platform pause parity | `GamePlatformBootstrap` + `Time.deltaTime` driver | WebGL pause/resume pass | No authoritative tick advances under platform pause. |
 | Non-colour accessibility | Sensor atlas, captions, labels, low-sensory toggle | Manual accessibility run | Critical cue readable with caption only. |
+| Persisted accessibility profile | `AccessibilityProfileState`, `AccessibilityProfileStore`, `UnitySimulationDriver` | Core clamp/non-authority smoke test | Restart and slot-load restore, `85–135%` layout pass. |
+| Keyboard/focus controls | uGUI EventSystem, labelled settings, optional shortcuts | Source review + Unity device matrix | Mouse/touch/keyboard/controller focus visible; shortcut never sole route. |
+| Pause/resume/restart parity | `GamePlatformBootstrap`, `UnitySimulationDriver`, pause overlay | Source review + WebGL manual pass | No fixed tick/catch-up during platform overlay; profile safely saved. |
 | Local-first GamePush sync | `IGamePlatform`, `ProgressSyncController` | Mock/offline test | Cloud failure cannot lose local state. |
 | Achievement progression | `AchievementCatalog`, `AchievementProgressionSystem`, Archive pending queue | Core trigger/uniqueness/persistence smoke test | Unlock отражает наблюдаемый след, не даёт power и не зависит от сети. |
 | Achievement dispatch lifecycle | `GamePlatformBootstrap`, `ProgressSyncController`, achievement strip | Unity/GamePush ready/offline manual pass | Local checkpoint precedes dispatch; pending tag не удаляется без remote confirmation. |
@@ -33,4 +36,4 @@
 
 ## Minimum fixture set
 
-`CoreSmokeTests` validates deterministic route outcome, protective Governor block, DTO map round-trip, the three-chain campaign through staged return and fairness of the full catalog. Перед публикацией добавьте Unity fixtures для: surface lag, silver corridor moisture, uneven branch start-stop, blackout staged return, save/load each event phase, policy active continuity, corrupt current/backup recovery, GamePush offline fallback и consent revoke.
+`CoreSmokeTests` validates deterministic route outcome, protective Governor block, DTO map round-trip, the three-chain campaign through staged return, fairness of the full catalog and bounded/non-authoritative accessibility profile semantics. Перед публикацией добавьте Unity fixtures для: surface lag, silver corridor moisture, uneven branch start-stop, blackout staged return, save/load each event phase, policy active continuity, corrupt current/backup recovery, GamePush offline fallback и consent revoke.

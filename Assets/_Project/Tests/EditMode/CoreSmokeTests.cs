@@ -22,6 +22,7 @@ namespace OneDayThermostat.Tests
                 LocalizationCatalogProvidesFallbackAndRejectsDuplicateKeys();
                 ProgressionQueuesPlatformSyncWithoutDuplicateUnlocks();
                 CanonicalScenarioCatalogMeetsFairnessContract();
+                AccessibilityProfileIsBoundedAndNonAuthoritative();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
             }
@@ -71,6 +72,34 @@ namespace OneDayThermostat.Tests
                 Assert(scenario.IsFair(out var reason), $"scenario {scenario.Id} must satisfy fairness contract: {reason}");
                 Assert(scenario.Routes.TrueForAll(route => route.PreservesResidentAgency), $"scenario {scenario.Id} must preserve resident agency");
             }
+        }
+
+        private static void AccessibilityProfileIsBoundedAndNonAuthoritative()
+        {
+            var profile = new AccessibilityProfileState { ReducedMotion = true, LowSensory = true, TextScale = 9f, KeyboardHints = false }.Clone();
+            Assert(profile.ReducedMotion && profile.LowSensory && !profile.KeyboardHints, "profile clone should preserve player presentation choices");
+            var restoredProfile = AccessibilityProfileState.FromDto(profile.ToDto());
+            Assert(restoredProfile.ReducedMotion && restoredProfile.LowSensory && !restoredProfile.KeyboardHints, "profile DTO round-trip must preserve presentation choices");
+            Assert(restoredProfile.TextScale == AccessibilityProfileState.MaxTextScale, "profile DTO round-trip must preserve normalized text scale");
+            Assert(profile.TextScale == AccessibilityProfileState.MaxTextScale, "text scale must clamp to the documented upper bound");
+            Assert(AccessibilityProfileState.ClampTextScale(.1f) == AccessibilityProfileState.MinTextScale, "text scale must clamp to the documented lower bound");
+
+            var baseline = RunScenarioWithAccessibility(false, false);
+            var accessible = RunScenarioWithAccessibility(true, true);
+            Assert(baseline.entranceTemperature == accessible.entranceTemperature, "accessibility preferences must not alter route physics");
+            Assert(baseline.branchStage == accessible.branchStage, "accessibility preferences must not alter component consequences");
+            Assert(baseline.phase == accessible.phase, "accessibility preferences must not alter event progression");
+        }
+
+        private static (float entranceTemperature, ComponentStage branchStage, EventPhase phase) RunScenarioWithAccessibility(bool reducedMotion, bool lowSensory)
+        {
+            var world = SimulationWorld.CreatePrologue(67);
+            world.ReducedMotion = reducedMotion;
+            world.LowSensory = lowSensory;
+            var orchestrator = new SimulationOrchestrator();
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SetRoute, TargetId = "route.quiet_middle", Value = .36f, Source = "test" });
+            for (var index = 0; index < 18; index++) orchestrator.Step(world);
+            return (world.Zone("entrance").AirTemperature, world.Component("component.branch_26").Stage, world.Event.Phase);
         }
 
         private static void SaveMapperRoundTripPreservesAuthority()

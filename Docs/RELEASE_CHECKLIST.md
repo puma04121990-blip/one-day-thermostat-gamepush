@@ -26,11 +26,12 @@
 
 | Проверка | Ожидаемый результат | Статус для 0.1.0 |
 |---|---|---|
-| Keyboard/mouse/touch/controller navigation | Onboarding, route/policy/settings actions доступны; focus visible | Требует Unity device pass. |
+| Keyboard/mouse/touch/controller navigation | Onboarding, route/policy/settings actions доступны; focus visible; shortcut не является единственным путём | Keyboard fallback реализован; Unity device pass требуется. |
+| Accessibility profile persistence | Reduced motion, low-sensory, keyboard hints и text scale восстанавливаются после restart и slot load | Store/normalization реализованы; Unity evidence требуется. |
 | Non-colour redundancy | Heat/Air/Vibration/Moisture/Network/Surface имеют shape/pattern/label/caption | Дизайн и asset atlas: готово; runtime pass требуется. |
 | Reduced motion | Декоративная пульсация отсутствует, смысл и решения сохранены | UI toggle: готово; Unity pass требуется. |
 | Low-sensory | Captions/labels/patterns достаточны для каждого critical cue | UI fallback: готово; scripted playtest требуется. |
-| Text expansion | Russian complete, English fallback не обрезается | Требует Unity text-layout review. |
+| Text expansion | Russian complete, English fallback не обрезается при `85%`, `100%` и `135%` | Требует Unity text-layout review. |
 
 ## GamePush/WebGL
 
@@ -39,6 +40,7 @@
 | Official plugin imported | Plugin по официальной инструкции; Project ID/Public Token локальны | Блокер: нужны данные владельца. |
 | `GAMEPUSH_SDK` branch | Build компилируется и `GP_Init.OnReady` → `GP_Game.GameReady` происходит один раз | Блокер: GamePush test project. |
 | Platform lifecycle | GameplayStart приходит только после player start action; pause/resume не двигает simulation; GameplayStop корректен | Блокер: WebGL test. |
+| Pause/restart recovery | Pause overlay видим; `Tick` не меняется под overlay; focus return/restart сохраняет profile и не создаёт catch-up ticks | Блокер: WebGL test. |
 | Cloud mirror | Valid compact DTO sync; offline/cloud error сохраняет local session | Блокер: GamePush test. |
 | Consent analytics | Без opt-in нет analytics Goal; revoke немедленно останавливает future sends | Блокер: GamePush test. |
 | Achievements | Archive tag unlock после local Archive change, duplicate безопасен | Блокер: GamePush dashboard tags. |

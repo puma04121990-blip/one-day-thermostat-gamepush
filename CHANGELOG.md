@@ -15,6 +15,10 @@
 - Archive/service follow-up: материальные последствия, безопасное обслуживание компонента, end-of-day review и save round-trip service state.
 - Typed ru-RU/en-US localization catalog, runtime fallback, semantic content manifest и CI-проверка JSON parity/Resources sync.
 - Data-driven achievement progression, local-first pending GamePush dispatch, player-facing achievement strip и save-persisted unlock state.
+- Local-first accessibility profile: reduced motion, low-sensory, keyboard hints и bounded text scale `85–135%`, сохраняемые отдельно от slot save.
+- Keyboard shortcuts и uGUI focus start после onboarding; text scale controls с labelled fallback.
+- Platform pause overlay и focus-return path без catch-up ticks; pause/focus сохраняют текущий slot и accessibility profile.
+- Pure-core accessibility state и smoke coverage: bounded text scale и отсутствие влияния presentation preferences на physics/component/event outcome.
 
 ### Planned
 
@@ -24,6 +28,8 @@
 | Unity | Открыть проект в зафиксированной Unity 6 версии, проверить package resolve, сцену auto-bootstrap и WebGL build. |
 | Контент | Превратить catalog definitions в authorable ScriptableObject instances/fixtures и завершить scripted day sequence. |
 | Локализация | Подключить translation loader и пройти expansion/fallback audit. |
+| Доступность | Выполнить Unity device/layout matrix для keyboard/controller/touch, `85–135%` текста и persistent profile. |
+| WebGL lifecycle | В GamePush test project подтвердить pause overlay, отсутствие tick/catch-up при resume и restart persistence. |
 
 ## [0.1.0] — 2026-08-22
 
