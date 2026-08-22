@@ -56,6 +56,14 @@ export type FeedbackTopic = "cause" | "cost" | "accessibility";
 export interface LocalFeedbackEntry { tick: number; topic: FeedbackTopic; understanding: "clear" | "unclear"; }
 export interface LocalFeedbackState { consent: FeedbackConsent; entries: LocalFeedbackEntry[]; }
 
+export type HandsOnAction = "touch_frame" | "hold_route" | "touch_wall";
+export interface HandsOnState {
+  step: 0 | 1 | 2 | 3;
+  completed: HandsOnAction[];
+  currentAction?: HandsOnAction;
+  feedback: string;
+}
+
 export type BlackoutPhase = "inactive" | "grid_warning" | "failover" | "reserve_triage" | "dark_baseline" | "grid_return" | "afterglow";
 export type ReserveFocusSensor = "surface" | "vibration" | "moisture";
 export type ReserveActionId = "focus_sense" | "lock_route" | "pulse_shunt";
@@ -81,7 +89,8 @@ export type ReplayCommand =
   | { tick: number; kind: "service"; taskId: string }
   | { tick: number; kind: "reserve"; action: ReserveActionId; focus?: ReserveFocusSensor }
   | { tick: number; kind: "feedback_consent"; consent: FeedbackConsent }
-  | { tick: number; kind: "feedback"; topic: FeedbackTopic; understanding: "clear" | "unclear" };
+  | { tick: number; kind: "feedback"; topic: FeedbackTopic; understanding: "clear" | "unclear" }
+  | { tick: number; kind: "hands_on"; action: HandsOnAction };
 export interface ReplayState { version: 1; commands: ReplayCommand[]; }
 export interface ReplayRecord { version: 1; schemaVersion: number; contentVersion: string; scenarioSeed: number; finalTick: number; commands: ReplayCommand[]; }
 
@@ -112,6 +121,7 @@ export interface GameState {
   tutorial: TutorialState;
   stewardship: StewardshipState;
   feedback: LocalFeedbackState;
+  handsOn: HandsOnState;
   blackout: BlackoutState;
   replay: ReplayState;
   dayComplete: boolean;

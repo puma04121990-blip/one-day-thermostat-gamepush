@@ -6,7 +6,7 @@ import { climateEventDefinition, isBranchEmergencyEligible } from "./EventCatalo
 import { isKnownPolicyId, policyDefinition, previewPolicy } from "./PolicyCatalog";
 import { diagnosticFor, scenarioAt, SENSOR_LAYERS } from "./ScenarioCatalog";
 import { createServiceTask } from "./ServiceCatalog";
-import type { ConfigurationChannel, ConfigurationPreview, DiagnosticStatus, EmergencyAction, EventPhase, FeedbackConsent, FeedbackTopic, GameState, JournalEntry, PolicyPreview, ReplayCommand, ReplayRecord, ReserveActionId, ReserveFocusSensor, RouteKind, SensorLayer, TutorialBeatId } from "./types";
+import type { ConfigurationChannel, ConfigurationPreview, DiagnosticStatus, EmergencyAction, EventPhase, FeedbackConsent, FeedbackTopic, GameState, HandsOnAction, JournalEntry, PolicyPreview, ReplayCommand, ReplayRecord, ReserveActionId, ReserveFocusSensor, RouteKind, SensorLayer, TutorialBeatId } from "./types";
 
 const SAVE_KEY = "one-day-thermostat.phaser.save.v1";
 const TICK_MS = 200;
@@ -25,6 +25,7 @@ const newEvent = () => ({ id: "event.none", familyId: "none", seed: 104729, stat
 const newTutorial = () => ({ current: "observe_heat" as const, completed: [], hintsShown: [] });
 const newStewardship = () => ({ recognitions: [], repeatGate: [] });
 const newFeedback = () => ({ consent: "undecided" as const, entries: [] });
+const newHandsOn = () => ({ step: 0 as const, completed: [], feedback: "Сквозняк вошёл через раму. Коснись медного следа." });
 const newBlackout = () => ({ phase: "inactive" as const, reserveCells: 5, foreshadows: [...BLACKOUT_FORESHADOWS] as [string, string], usedActions: [], passivePreparation: false });
 const newReplay = () => ({ version: 1 as const, commands: [] });
 
@@ -50,8 +51,38 @@ export class ThermostatSimulation {
     if (this.state.started) return;
     this.state.started = true;
     this.recordCommand({ tick: this.state.tick, kind: "start" });
-    this.append("trace", "Начало наблюдения", "Дом не требует подчинения жильцов. Здесь можно собрать только материальный маршрут.");
+    this.append("trace", "Первый след", "Сквозняк вошёл через раму. Сначала коснись медного следа на доме.");
     this.persist();
+  }
+
+  public performHandsOn(action: HandsOnAction) {
+    if (!this.state.started) return false;
+    const handsOn = this.state.handsOn;
+    const sequence: HandsOnAction[] = ["touch_frame", "hold_route", "touch_wall"];
+    const expected = sequence[handsOn.step];
+    if (action !== expected) return false;
+    handsOn.completed.push(action);
+    handsOn.currentAction = action;
+    if (action === "touch_frame") {
+      handsOn.feedback = "Рама отозвалась. Теперь удержи медную связь, чтобы тихая комната не остыла.";
+      this.state.metrics.air = clamp(this.state.metrics.air + .04);
+      this.append("tutorial", "Рама найдена", "Сквозняк получил видимый путь. Следующее действие — удержать связь, а не искать меню.");
+    } else if (action === "hold_route") {
+      handsOn.feedback = "Связь защёлкнулась. Холодный след стал слабее — осталась тёплая стена.";
+      this.state.metrics.surface = clamp(this.state.metrics.surface + .07);
+      this.state.metrics.wear = clamp(this.state.metrics.wear - .03);
+      this.append("tutorial", "Тихое окно сохранено", "Маршрут удержал тепло стены. Ещё один след покажет, почему позже появится выбор.");
+    } else {
+      handsOn.feedback = "Стена держит тепло. Теперь можно сравнить два настоящих маршрута.";
+      this.state.metrics.rhythm = clamp(this.state.metrics.rhythm + .05);
+      this.state.sensorLayer = "surface";
+      this.append("archive", "Три следа собраны", "Рама, маршрут и стена показали цену без технического словаря.");
+    }
+    handsOn.step = (handsOn.step + 1) as 1 | 2 | 3;
+    this.recordCommand({ tick: this.state.tick, kind: "hands_on", action });
+    this.refreshDiagnostic();
+    this.persist();
+    return true;
   }
 
   public chooseRoute(route: RouteKind) {
@@ -249,6 +280,7 @@ export class ThermostatSimulation {
     if (command.kind === "reserve") this.useReserve(command.action, command.focus);
     if (command.kind === "feedback_consent") this.setFeedbackConsent(command.consent);
     if (command.kind === "feedback") this.recordFeedback(command.topic, command.understanding);
+    if (command.kind === "hands_on") this.performHandsOn(command.action);
   }
 
   public snapshot(): GameState { return JSON.parse(JSON.stringify(this.state)) as GameState; }
@@ -302,6 +334,7 @@ export class ThermostatSimulation {
       tutorial: newTutorial(),
       stewardship: newStewardship(),
       feedback: newFeedback(),
+      handsOn: newHandsOn(),
       blackout: newBlackout(),
       replay: newReplay(),
       dayComplete: false

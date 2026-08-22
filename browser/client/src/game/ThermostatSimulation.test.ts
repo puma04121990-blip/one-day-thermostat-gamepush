@@ -30,6 +30,22 @@ describe("ThermostatSimulation", () => {
     expect(state.options.map((option) => option.id)).toEqual(["careful", "direct"]);
   });
 
+  it("turns the first minute into three immediate tactile actions before advanced UI is revealed", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    expect(simulation.performHandsOn("hold_route")).toBe(false);
+    expect(simulation.performHandsOn("touch_frame")).toBe(true);
+    expect(simulation.snapshot().handsOn).toMatchObject({ step: 1, completed: ["touch_frame"] });
+    expect(simulation.performHandsOn("hold_route")).toBe(true);
+    expect(simulation.snapshot().metrics.surface).toBeGreaterThan(.48);
+    expect(simulation.performHandsOn("touch_wall")).toBe(true);
+    const state = simulation.snapshot();
+    expect(state.handsOn).toMatchObject({ step: 3, completed: ["touch_frame", "hold_route", "touch_wall"] });
+    expect(state.archive.some((entry) => entry.title === "Три следа собраны")).toBe(true);
+    expect(state.replay.commands.filter((entry) => entry.kind === "hands_on")).toHaveLength(3);
+    expect(simulation.replayDeterministically()).toBe(true);
+  });
+
   it("switches semantic sensor diagnostics without allowing presentation to mutate the scenario", () => {
     const simulation = new ThermostatSimulation();
     const before = simulation.snapshot();

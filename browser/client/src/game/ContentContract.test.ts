@@ -76,4 +76,12 @@ describe("content-version save fallback", () => {
     expect(normalized?.state.blackout.focusedSensor).toBeUndefined();
     expect(normalized?.state.replay.commands).toEqual([{ tick: 2, kind: "route", route: "careful" }]);
   });
+
+  it("adds the safe first-minute hands-on state to a schema 5 save", () => {
+    const legacy = new ThermostatSimulation().snapshot() as unknown as Record<string, unknown>;
+    legacy.schemaVersion = 5;
+    delete legacy.handsOn;
+    const migration = migrateSavedState(legacy);
+    expect(migration?.state.handsOn).toEqual({ step: 0, completed: [], currentAction: undefined, feedback: "Сквозняк вошёл через раму. Коснись медного следа." });
+  });
 });

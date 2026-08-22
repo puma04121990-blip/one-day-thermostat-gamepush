@@ -8,8 +8,8 @@ import { diagnosticFor, scenarioAt, SENSOR_LAYERS } from "./ScenarioCatalog";
 import { isKnownServiceTaskId, serviceTemplateFor } from "./ServiceCatalog";
 import type { ConfigurationChannel, GameState, SensorLayer } from "./types";
 
-export const SAVE_SCHEMA_VERSION = 5;
-export const CONTENT_VERSION = "browser-content-2026.08-master.3";
+export const SAVE_SCHEMA_VERSION = 6;
+export const CONTENT_VERSION = "browser-content-2026.08-master.4";
 const CHANNELS: ConfigurationChannel[] = ["firmware", "sensor", "route"];
 const PHASES = ["prologue", "warning", "active", "aftermath", "complete"];
 const EVENT_STATES = ["dormant", "foreshadow", "warning", "active", "stabilized", "aftermath"];
@@ -17,6 +17,7 @@ const TUTORIAL_BEATS = ["observe_heat", "read_vibration", "compare_routes", "rem
 const BLACKOUT_PHASES = ["inactive", "grid_warning", "failover", "reserve_triage", "dark_baseline", "grid_return", "afterglow"];
 const RESERVE_ACTIONS = ["focus_sense", "lock_route", "pulse_shunt"];
 const FOCUS_SENSORS = ["surface", "vibration", "moisture"];
+const HANDS_ON_ACTIONS = ["touch_frame", "hold_route", "touch_wall"];
 
 type MigrationResult = { state: GameState; notes: string[] };
 
@@ -118,6 +119,16 @@ export function migrateSavedState(raw: unknown): MigrationResult | undefined {
     consent: feedback?.consent === "accepted" || feedback?.consent === "declined" ? feedback.consent : "undecided",
     entries: feedback?.consent === "accepted" && Array.isArray(feedback.entries) ? feedback.entries.filter((entry) => object(entry) && typeof object(entry)?.tick === "number" && ["cause", "cost", "accessibility"].includes(String(object(entry)?.topic)) && ["clear", "unclear"].includes(String(object(entry)?.understanding))) as GameState["feedback"]["entries"] : []
   };
+  const handsOn = object(saved.handsOn);
+  const completedHandsOn = Array.isArray(handsOn?.completed) ? handsOn.completed.filter((entry, index, source) => typeof entry === "string" && HANDS_ON_ACTIONS.includes(entry) && source.indexOf(entry) === index).slice(0, 3) as GameState["handsOn"]["completed"] : [];
+  const handsOnStep = Math.max(0, Math.min(3, completedHandsOn.length)) as GameState["handsOn"]["step"];
+  const feedbackCopy = [
+    "Сквозняк вошёл через раму. Коснись медного следа.",
+    "Рама отозвалась. Теперь удержи медную связь, чтобы тихая комната не остыла.",
+    "Связь защёлкнулась. Холодный след стал слабее — осталась тёплая стена.",
+    "Стена держит тепло. Теперь можно сравнить два настоящих маршрута."
+  ][handsOnStep];
+  state.handsOn = { step: handsOnStep, completed: completedHandsOn, currentAction: completedHandsOn.at(-1), feedback: typeof handsOn?.feedback === "string" ? handsOn.feedback : feedbackCopy };
   const blackout = object(saved.blackout);
   const blackoutPhase = typeof blackout?.phase === "string" && BLACKOUT_PHASES.includes(blackout.phase) ? blackout.phase as GameState["blackout"]["phase"] : "inactive";
   const usedActions = Array.isArray(blackout?.usedActions) ? blackout.usedActions.filter((entry, index, source) => typeof entry === "string" && RESERVE_ACTIONS.includes(entry) && source.indexOf(entry) === index).slice(0, 3) as GameState["blackout"]["usedActions"] : [];
@@ -138,7 +149,7 @@ export function migrateSavedState(raw: unknown): MigrationResult | undefined {
   const replay = object(saved.replay);
   const commands = Array.isArray(replay?.commands) ? replay.commands.filter((entry) => {
     const value = object(entry);
-    return value && typeof value.tick === "number" && Number.isInteger(value.tick) && value.tick >= 0 && typeof value.kind === "string" && ["start", "route", "sensor", "configuration", "policy", "service", "reserve", "feedback_consent", "feedback"].includes(value.kind);
+    return value && typeof value.tick === "number" && Number.isInteger(value.tick) && value.tick >= 0 && typeof value.kind === "string" && ["start", "route", "sensor", "configuration", "policy", "service", "reserve", "feedback_consent", "feedback", "hands_on"].includes(value.kind);
   }).slice(0, 400) as GameState["replay"]["commands"] : [];
   state.replay = { version: 1, commands };
   if (storedSchema < SAVE_SCHEMA_VERSION) notes.push(`Local save migrated from schema ${storedSchema}.`);

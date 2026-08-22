@@ -2,7 +2,7 @@
 
 ## Bundle boundary
 
-Baseline production bundle был одним `index` chunk: **1.96 MB / 475 KB gzip**. После split initial shell состоит из `index` **166.98 KB / 33.84 KB gzip**, `react-core` **390.77 KB / 116.57 KB gzip** и CSS **104.25 KB / 19.65 KB gzip**. Phaser engine вынесен в отдельный `phaser-engine` chunk **1.48 MB / 339.86 KB gzip** и начинает загружаться только после явного «НАЧАТЬ НАБЛЮДЕНИЕ». Рост initial shell отражает local-first Event Director/tutorial/feedback, reserve HUD и replay copy; deferred-engine boundary сохранена.
+Baseline production bundle был одним `index` chunk: **1.96 MB / 475 KB gzip**. После split initial shell состоит из `index` **181.19 KB / 35.79 KB gzip**, `react-core` **390.77 KB / 116.57 KB gzip** и CSS **107.19 KB / 20.27 KB gzip**. Phaser engine вынесен в отдельный `phaser-engine` chunk **1.48 MB / 339.86 KB gzip** и начинает загружаться только после явного действия «ПОКАЗАТЬ СЛЕД». Рост initial shell отражает local-first Event Director/tutorial/feedback, reserve HUD, replay copy и новый tactile first-minute loop; deferred-engine boundary сохранена.
 
 > Границы измерены командой `pnpm build` в текущем проекте. Размеры зависят от версии dependency и не являются обещанием сетевой скорости на устройстве игрока.
 
@@ -18,15 +18,15 @@ Captured responsive browser previews at **375×812** and **390×844** show the o
 
 ## Versioned local save
 
-`schemaVersion=5` и `contentVersion=browser-content-2026.08-master.3` сохраняются внутри `GameState`. При чтении local save browser edition:
+`schemaVersion=6` и `contentVersion=browser-content-2026.08-master.4` сохраняются внутри `GameState`. При чтении local save browser edition:
 
 | Состояние | Поведение |
 |---|---|
-| Legacy schema 1–4 | Мигрируется в schema 5, отмечается Archive trace. |
+| Legacy schema 1–5 | Мигрируется в schema 6, отмечается Archive trace. |
 | Новая content version | Сверяется с актуальными safe catalogs; Archive остаётся. |
 | Исчезнувший configuration ID | Меняется на видимый canonical default; pending preview удаляется. |
 | Исчезнувший service/achievement ID | Активная запись не переносится; факт обновления остаётся в Archive. |
-| Отсутствующие canonical tranche fields | Восстанавливаются safe defaults: deterministic seed, dormant event, начальный tutorial, пустой recognition ledger, отключённый local feedback, inactive blackout, пять reserve cells и пустой replay log. |
+| Отсутствующие canonical tranche fields | Восстанавливаются safe defaults: deterministic seed, hands-on `0/3`, dormant event, начальный tutorial, пустой recognition ledger, отключённый local feedback, inactive blackout, пять reserve cells и пустой replay log. |
 | Future schema | Не загружается: новый день безопаснее неверной миграции. |
 
 ## GamePush boundary

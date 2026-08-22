@@ -34,6 +34,16 @@
 - [x] Prepare a physical-device test script for touch, screen reader, slow-network and orientation checks; hardware results remain pending a real device.
 - [ ] Run local verification, protected GitHub PR CI, rebase merge and WebDev checkpoint.
 
+## UX reboot: понятный и тактильный первый игровой цикл
+
+- [x] Audit the current first minute for jargon, competing panels, delayed feedback and unclear player goal; write a blunt keep/cut/change decision record.
+- [x] Replace the initial reading-heavy setup with one visible household tension, one immediate tactile action and one clearly observed consequence.
+- [x] Turn route selection into a short action sequence with a physical «tap/hold/route» feel, clear affordances and no hidden prerequisite vocabulary.
+- [x] Introduce a simple, non-punitive progress language: stabilise a room, save a comfort window, collect a material clue and unlock the next small beat.
+- [x] Defer advanced diagnostics, policies, service, replay and blackout controls behind earned discovery rather than presenting systems immediately.
+- [x] Validate the revised first minute on desktop and 390px mobile for comprehension, touch reach, keyboard flow and immediate feedback.
+- [ ] Run final tests/build, protected PR CI and checkpoint the UX reboot.
+
 - [x] Verify why `ThermostatScene.init()` does not receive `simulation` before `create()`.
 - [x] Start the scene only after Phaser boot and pass data through the supported scene lifecycle.
 - [x] Prefer Canvas renderer when WebGL framebuffer support is unavailable or unreliable.

@@ -18,7 +18,7 @@ pnpm build
 
 ## Что уже играет
 
-Игрок начинает наблюдение, получает два видимых предвестника, выбирает один из двух маршрутов, читает последствия в Archive и проходит три authored цепочки: «Порог Аркадия», «Кухня без огня» и «Тихий цикл». Даже прямой маршрут продолжает день через material service trace: в игре нет hard game-over, obedience score или управления жильцами.
+Первые 60 секунд больше не начинаются с панели систем. Игрок видит один холодный след в кухне, **касается рамы**, **удерживает медную связь** 0.6 секунды и **проверяет тёплую стену**. Каждое действие немедленно меняет дом и счётчик `0/3 → 3/3`; лишь затем открывается первый понятный выбор: «Сохранить тихое окно» или «Быстрый обход». После этого игрок проходит три authored цепочки: «Порог Аркадия», «Кухня без огня» и «Тихий цикл». Даже прямой маршрут продолжает день через material service trace: в игре нет hard game-over, obedience score или управления жильцами. UX audit и acceptance criteria: [`UX_REBOOT_AUDIT.md`](UX_REBOOT_AUDIT.md).
 
 В первой цепочке есть проверяемый crisis slice A-01 «Ветвь 26 просит тишины». После добровольного чтения vibration layer локальный Event Director проверяет authored context, material branch threshold и cooldown, показывает два независимых предвестника, а затем предлагает `Safe-flow + Buffer` или `Quarantine + Shunt`. Оба маршрута создают recoverable baseline; это browser-safe игровая абстракция, а не инструкция по реальному ремонту.
 
@@ -28,15 +28,15 @@ pnpm build
 
 В нижней части той же панели находятся bounded policy rules. Они используют видимую форму `WHEN → IF → THEN → UNTIL + цена`; Governor разрешает только текущий authored context, ставит commit в next tick, сохраняет start/stop record в Archive и никогда не управляет жильцами.
 
-Туториал не останавливает игру модальными окнами: он сохраняет локальные beats «прочитать тепло → сверить вибрацию → сравнить цену маршрута → увидеть след». Бережные маршруты и safe emergency route также получают idempotent stewardship trace в Archive, без валюты за поведение жильцов и без power-up.
+Туториал не останавливает игру модальными окнами: первая последовательность «рама → связь → стена» сохраняется local-first, затем продолжается beats «прочитать тепло → сверить вибрацию → сравнить цену маршрута → увидеть след». Бережные маршруты и safe emergency route также получают idempotent stewardship trace в Archive, без валюты за поведение жильцов и без power-up.
 
 В service sheet (`V`) прямой маршрут может открыть материальную задачу обслуживания. Она касается только компонента дома, применяется bounded recovery на следующем fixed tick и не превращает день в hard fail. См. [`SERVICE_FOLLOW_UP.md`](SERVICE_FOLLOW_UP.md).
 
 Локальные achievements появляются только от fixed-tick Archive/review/service фактов, не дают power и сохраняют pending platform mirror tags до подключения настоящего GamePush browser SDK. Полный контракт: [`ACHIEVEMENTS.md`](ACHIEVEMENTS.md). Клавиша `A` открывает их в Archive.
 
-Browser shell теперь отделён от Phaser engine: canvas runtime загружается только после явного старта наблюдения. Schema 5 local saves сохраняют deterministic scenario seed, event, tutorial, stewardship, consent-first feedback, blackout state и replay command log; старые версии получают safe fallback, а future schema отклоняется. В Archive игрок может добровольно поставить анонимную local отметку о понятности причины/цены/доступности и вручную экспортировать JSON — без сети, идентификаторов или fabricated analytics. GamePush boundary остаётся disabled до test project. Детали и измеренный bundle baseline: [`PERFORMANCE_AND_CONTENT_COMPATIBILITY.md`](PERFORMANCE_AND_CONTENT_COMPATIBILITY.md); условия platform activation: [`GAMEPUSH_BROWSER_ADAPTER.md`](GAMEPUSH_BROWSER_ADAPTER.md).
+Browser shell теперь отделён от Phaser engine: canvas runtime загружается только после явного старта наблюдения. Schema 6 local saves сохраняют deterministic scenario seed, hands-on progress, event, tutorial, stewardship, consent-first feedback, blackout state и replay command log; старые версии получают safe fallback, а future schema отклоняется. В Archive игрок может добровольно поставить анонимную local отметку о понятности причины/цены/доступности и вручную экспортировать JSON — без сети, идентификаторов или fabricated analytics. GamePush boundary остаётся disabled до test project. Детали и измеренный bundle baseline: [`PERFORMANCE_AND_CONTENT_COMPATIBILITY.md`](PERFORMANCE_AND_CONTENT_COMPATIBILITY.md); условия platform activation: [`GAMEPUSH_BROWSER_ADAPTER.md`](GAMEPUSH_BROWSER_ADAPTER.md).
 
-Третья цепочка открывает tested blackout/reserve slice после двух читаемых предвестников. В нём есть пять импульсных ячеек, только три passive-first действия (`FOCUS SENSE`, `LOCK ROUTE`, `PULSE SHUNT`), один focus sensor и staged Grid Return; режим не моделирует реальное электричество и не является инструкцией по безопасности. Archive экспортирует принятый deterministic replay log и повторяет его изолированно по seed и 200ms tick. Контракт: [`BLACKOUT_REPLAY_DESIGN.md`](BLACKOUT_REPLAY_DESIGN.md); browser/physical validation boundary: [`ACCESSIBILITY_AND_DEVICE_VALIDATION.md`](ACCESSIBILITY_AND_DEVICE_VALIDATION.md). Для визуального development preview доступен `?demo=blackout`; этот путь не сохраняет состояние игрока.
+Третья цепочка открывает tested blackout/reserve slice после двух читаемых предвестников. В нём есть пять импульсных ячеек, только три passive-first действия (`FOCUS SENSE`, `LOCK ROUTE`, `PULSE SHUNT`), один focus sensor и staged Grid Return; режим не моделирует реальное электричество и не является инструкцией по безопасности. Archive экспортирует принятый deterministic replay log и повторяет его изолированно по seed и 200ms tick. Контракт: [`BLACKOUT_REPLAY_DESIGN.md`](BLACKOUT_REPLAY_DESIGN.md); browser/physical validation boundary: [`ACCESSIBILITY_AND_DEVICE_VALIDATION.md`](ACCESSIBILITY_AND_DEVICE_VALIDATION.md). Для isolated visual development previews доступны `?demo=hands`, `?demo=hands3` и `?demo=blackout`; они не сохраняют состояние игрока.
 
 Полный пользовательский master-пакет и все полученные PDF-preservation copies находятся в [`docs/source`](docs/source). Реальная адаптация, decisions и границы заявлений зафиксированы в [`MASTER_TRACEABILITY.md`](MASTER_TRACEABILITY.md), [`DECISION_LOG.md`](DECISION_LOG.md) и [`PRESENTATION_CLAIMS_REGISTER.md`](PRESENTATION_CLAIMS_REGISTER.md).
 
@@ -51,8 +51,8 @@ Browser shell теперь отделён от Phaser engine: canvas runtime з�
 
 | Клавиша | Действие |
 |---|---|
-| `Q` | Бережный маршрут, когда он доступен. |
-| `E` | Прямой маршрут, когда он доступен. |
+| `Q` | «Сохранить тихое окно», когда открыты маршруты после трёх первых действий. |
+| `E` | «Быстрый обход», когда открыты маршруты после трёх первых действий. |
 | `V` | Открыть сервис и обзор дня. |
 | `S` | Открыть sensor layers и diagnostic copy. |
 | `L` | Low-sensory режим. |
