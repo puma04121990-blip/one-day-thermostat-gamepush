@@ -38,7 +38,8 @@
 
 - [x] Inspect the current lazy Phaser mount lifecycle and define loading/readiness states.
 - [x] Add a visible labelled progress indicator that works with reduced motion and keyboard flow.
-- [x] Verify mobile onboarding, route choices, configuration/service sheets and touch target size.
+- [x] Verify mobile onboarding, top controls and 44px touch target size in responsive browser preview.
+- [ ] Perform interactive route/configuration/service-sheet validation on a physical mobile device.
 - [x] Measure mobile initial/after-start network payloads and record findings.
 - [x] Confirm that project-specific GamePush parameters are absent and preserve the inert local-first adapter.
 - [ ] Connect the verified GamePush test client after Project ID, allowed origin, browser bootstrap and achievement IDs are supplied through a safe channel.

@@ -14,7 +14,7 @@ React callbacks boot/ready memoized. Поэтому регулярные 5 Hz sn
 
 Hero cutaway, загружаемый только вместе со сценой, заменён с исходного **2560×1440 PNG, 5.9 MB** на полный 16:9 **1600×900 WebP, 141 KB**. Контент не обрезан; WebP уменьшает вторичный после-старта asset, но не меняет размер отложенного `phaser-engine` chunk.
 
-Responsive preview проверяется в browser viewport, включая 375×812 и 390×844. На width до 540px верхние icon controls имеют minimum target **44×44 CSS px**, а status panel удерживает 18px безопасный отступ. Это browser-viewport validation, не замена измерения на физическом устройстве или throttled network profiling.
+Captured responsive browser previews at **375×812** and **390×844** show the onboarding, start CTA and top controls without horizontal clipping. На width до 540px верхние icon controls имеют minimum target **44×44 CSS px**, а status panel удерживает 18px безопасный отступ. Это browser-viewport validation, не замена измерения на физическом устройстве, manual sheet interaction или throttled network profiling.
 
 ## Versioned local save
 
