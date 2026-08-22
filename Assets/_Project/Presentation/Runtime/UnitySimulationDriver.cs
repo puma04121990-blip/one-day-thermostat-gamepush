@@ -83,6 +83,13 @@ namespace OneDayThermostat.Presentation.Runtime
             _saves.Save(_world, slotId, Application.version);
         }
 
+        public string ExportValidatedSaveJson()
+        {
+            if (_world == null) return string.Empty;
+            var dto = SaveMapper.ToDto(_world, slotId, Application.version);
+            return JsonUtility.ToJson(dto);
+        }
+
         public void Load()
         {
             _world = _saves.LoadNewestValid(slotId);

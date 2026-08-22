@@ -1,4 +1,5 @@
 using System;
+using OneDayThermostat.Content;
 using OneDayThermostat.Core;
 
 namespace OneDayThermostat.Tests
@@ -12,6 +13,7 @@ namespace OneDayThermostat.Tests
                 DeterministicRouteOutcome();
                 PolicyGovernorBlocksUnsafePulse();
                 SaveMapperRoundTripPreservesAuthority();
+                CanonicalScenarioCatalogMeetsFairnessContract();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
             }
@@ -52,6 +54,15 @@ namespace OneDayThermostat.Tests
             var preview = governor.Validate(context, rule);
             Assert(preview.Status == PolicyDecisionStatus.Blocked, "protective component must block unsafe pulse");
             Assert(preview.AlternativeKey == "policy.alternative.recover_or_isolate", "blocked policy must show a safe alternative");
+        }
+
+        private static void CanonicalScenarioCatalogMeetsFairnessContract()
+        {
+            foreach (var scenario in CanonicalScenarioCatalog.Create())
+            {
+                Assert(scenario.IsFair(out var reason), $"scenario {scenario.Id} must satisfy fairness contract: {reason}");
+                Assert(scenario.Routes.TrueForAll(route => route.PreservesResidentAgency), $"scenario {scenario.Id} must preserve resident agency");
+            }
         }
 
         private static void SaveMapperRoundTripPreservesAuthority()
