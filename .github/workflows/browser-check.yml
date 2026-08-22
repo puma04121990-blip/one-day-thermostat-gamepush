@@ -1,0 +1,37 @@
+name: Browser checks
+
+on:
+  pull_request:
+    paths:
+      - "browser/**"
+      - ".github/workflows/browser-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "browser/**"
+      - ".github/workflows/browser-check.yml"
+
+jobs:
+  phaser-browser-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: browser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: browser/pnpm-lock.yaml
+      - name: Install browser dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check TypeScript
+        run: pnpm check
+      - name: Test fixed-tick simulation
+        run: pnpm test
+      - name: Build Phaser browser edition
+        run: pnpm build

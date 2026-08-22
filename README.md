@@ -1,18 +1,18 @@
 # «Один день термостата»
 
-> **Атмосферная системная игра о доме, который читается через тепло, воздух, влагу, износ и ритмы, а не через контроль над людьми.**
+> **Атмосферная системная браузерная игра о доме, который читается через тепло, воздух, влагу, износ и ритмы, а не через контроль над людьми.**
 
-«Один день термостата» — однопользовательская narrative systems game для Unity 6/URP. Игрок является старым настенным термостатом Т‑3: он неподвижен, но видит дом в разрезе, переключает сенсорные слои и создаёт бережные маршруты до того, как материальные следы становятся кризисом. Первый выпуск ориентирован на **Unity WebGL и GamePush**; локальный/editor fallback остаётся полноценным, чтобы игра не зависела от доступности сети или SDK.
+«Один день термостата» — однопользовательская narrative systems game на **Phaser 3 + TypeScript**. Игрок является старым настенным термостатом Т‑3: он неподвижен, но видит дом в разрезе и создаёт бережные маршруты до того, как материальные следы становятся кризисом. Основная поставка теперь — **лёгкий browser-first клиент**: игрок открывает ссылку и играет без Unity, Git, WebGL build или GamePush credentials.
 
 | Характеристика | Решение |
 |---|---|
-| Движок | Unity `6000.0.43f1` (Unity 6), URP |
-| Целевая поставка | WebGL-сборка для GamePush |
-| Авторитетная логика | Чистое C#-ядро с фиксированным тиком `5 Hz` |
-| Визуальный backend релиза | WebGL-safe cutaway/atlas; GPU compute — feature-gated enhancement |
+| Движок | Phaser `3.90.0` + React + TypeScript |
+| Целевая поставка | Прямая браузерная ссылка; GamePush browser adapter — последующий этап |
+| Авторитетная логика | Изолированный TypeScript fixed-tick core `5 Hz` |
+| Визуальный backend релиза | Phaser cutaway canvas + доступный HTML overlay |
 | Язык первой версии | Русский, с semantic localization keys |
-| Сохранения | Версионный local-first JSON DTO, current/backup, миграционный контракт |
-| Платформенный слой | `IGamePlatform`: GamePush при подключённом SDK, `NullGamePlatform` иначе |
+| Сохранения | Local-first `localStorage` day state и отдельный accessibility profile |
+| Платформенный слой | Browser fallback сейчас; idempotent GamePush mirror после test project |
 
 ## Канон и игровой контракт
 
@@ -27,9 +27,22 @@
 | L2 — диагностика | Источник, изменение, максимум две причины, прогноз и два маршрута |
 | L3 — память | Journal of Stewardship, Archive, Policy Log, service trace |
 
-## Содержимое текущей основы
+## Браузерная версия — запуск за минуту
 
-Репозиторий содержит рабочую чистую C#-модель пролога: входная дверь Аркадия создаёт холодный фронт; прямой lower-route греет быстрее, но давит на ветвь 26 и тихое окно Саши; middle-route работает медленнее, но снижает резонанс. В ядре уже заложены immutable snapshots, детерминированный event flow, component stress с named explanations/hysteresis, добровольная adaptation, diagnostics, route previews, bounded policies, Safety Governor и версионный save DTO.
+Исходники основной playable версии находятся в [`browser/`](browser/). Для игрока после публикации достаточно URL. Для локальной разработки нужны только Node.js и pnpm:
+
+```bash
+git clone https://github.com/puma04121990-blip/one-day-thermostat-gamepush.git
+cd one-day-thermostat-gamepush/browser
+pnpm install
+pnpm dev
+```
+
+Откройте адрес Vite. Клавиши `Q` / `E` выбирают доступные маршруты, `J` открывает Archive, `L` включает low-sensory, `M` — reduced motion. Все действия дублированы кнопками. Подробная browser architecture и правила local-first пути лежат в [`browser/README.md`](browser/README.md) и [`browser/ARCHITECTURE.md`](browser/ARCHITECTURE.md).
+
+## Legacy Unity reference
+
+В `Assets/` сохранён прежний Unity 6 прототип как **legacy reference** для переносимых content contracts и ранее сделанной работы. Он не нужен игроку для теста браузерной версии и не является основным способом поставки. Перед окончательным удалением Unity-кода remaining content/save contracts будут перенесены и покрыты browser tests.
 
 | Каталог | Содержимое |
 |---|---|
@@ -40,24 +53,14 @@
 | `Assets/_Project/Tests` | Smoke-test детерминизма, Governor и save mapping; Unity tests/fixtures расширяются по мере контента |
 | `Docs` | Архитектура, GamePush setup, контентные схемы, traceability, QA и release gates |
 
-## Быстрый старт в Unity
-
-Клонируйте публичный репозиторий, откройте его в указанной версии Unity 6 и позвольте Package Manager восстановить URP/Input System/Test Framework. Сцена и UI-слой собираются из описанных в `Docs/` компонентов; на первом открытии игра использует `NullGamePlatform`, поэтому Project ID и Public Token не требуются для local/editor play mode.
-
-```bash
-gh repo clone puma04121990-blip/one-day-thermostat-gamepush
-```
-
-В Unity добавьте `UnitySimulationDriver` на bootstrap GameObject. Он запускает canonical prologue и публикует снимки, которые потребляют cutaway/UI/audio. Критически важно не размещать геймплейные правила в `Update` произвольных MonoBehaviour: единственный authoritative order находится в `SimulationOrchestrator`.
-
 ## Подключение GamePush
 
-Официальный Unity-плагин GamePush подключается владельцем в Unity через его рекомендованный установочный путь. После импорта плагина задайте **Project ID** и **Public Token** только в локальных настройках, не коммитьте их в Git и включите scripting define symbol `GAMEPUSH_SDK`. Тогда `GamePushPlatformAdapter` начнёт использовать подтверждённые API инициализации, player storage, achievements, analytics, fullscreen и gameplay lifecycle. Без символа проект компилируется и работает через `NullGamePlatform`.
+Browser Edition запускается без GamePush и без credentials. Текущий localStorage save остаётся источником восстановления; будущий browser adapter будет только зеркалировать локально подтверждённые achievement/progression safe points. Для фактического подключения нужны GamePush test project и официальный browser SDK; до этого момента в репозиторий не добавляются токены, фальшивые API calls или платформа как authoritative источник.
 
 | Функция | Поведение |
 |---|---|
-| Game ready/lifecycle | Сообщается только после readiness SDK; pause/resume передаются в presentation layer |
-| Прогресс | Local safe save является источником восстановления; компактный DTO синхронизируется platform adapter после safe point |
+| Game ready/lifecycle | Будет сообщаться только после readiness browser SDK; platform pause не должна создавать catch-up ticks |
+| Прогресс | Local save является источником восстановления; mirror отправляется после локального safe point |
 | Achievements | Только Archive/бережность: профилактика, recovery и прозрачные policy, без механического преимущества |
 | Analytics | Только после явного согласия; события описывают понимание причинности, а не личные данные |
 | Ads/purchases/leaderboards | Отключены в первом релизе; не допустимы во время кризиса и не дают power advantage |
