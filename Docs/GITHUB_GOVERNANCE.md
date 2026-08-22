@@ -2,13 +2,26 @@
 
 ## Текущее состояние
 
-Репозиторий создан как приватный: [`puma04121990-blip/one-day-thermostat-gamepush`](https://github.com/puma04121990-blip/one-day-thermostat-gamepush). В нём активна CI-проверка `Core checks`, которая на каждом push/PR выполняет secret policy, компиляцию deterministic core smoke-test и проверку обязательной production-документации.
+Репозиторий открыт публично: [`puma04121990-blip/one-day-thermostat-gamepush`](https://github.com/puma04121990-blip/one-day-thermostat-gamepush). В нём активна CI-проверка `Core checks`, которая на каждом push/PR выполняет secret policy, компиляцию deterministic core smoke-test и проверку обязательной production-документации.
 
-Попытка включить branch protection для `main` была отклонена GitHub с HTTP 403: для текущего приватного репозитория эта возможность требует GitHub Pro либо публичного репозитория. Поэтому защита **не считается включённой**. Текущий файл `.github/branch-protection.json` хранит воспроизводимую желаемую конфигурацию; он не применяет правила сам по себе.
+Серверная защита `main` **включена**. Она требует актуальный успешный check `secret-and-core-check`, требует linear history и запрещает force push/удаление основной ветки. Конфигурация хранится в `.github/branch-protection.json` и применена через GitHub REST API; сам JSON остаётся в репозитории как воспроизводимый источник правил.
 
-## Когда защита станет доступна
+| Правило | Значение |
+|---|---|
+| Обязательный status check | `secret-and-core-check` |
+| Strict up-to-date status | Да |
+| Linear history | Да |
+| Force pushes | Запрещены |
+| Deletion of `main` | Запрещено |
+| Required review | Не включён для текущего индивидуального ownership; добавить при появлении команды отдельным решением. |
 
-После появления поддержки branch protection для private repository примените следующий файл через GitHub CLI под владельцем репозитория:
+## Рабочий процесс
+
+Все изменения создаются в тематической ветке и попадают в `main` через pull request после успешного `Core checks`. Прямые изменения `main`, force push и удаление ветки блокируются server-side policy. Перед pull request автор выполняет требования `CONTRIBUTING.md`, включая clean worktree, local core smoke-test, проверку отсутствия credentials и тематическую документацию.
+
+## Воспроизводимое применение
+
+Если правила нужно восстановить или обновить, выполните под владельцем репозитория:
 
 ```bash
 gh api --method PUT \
@@ -16,8 +29,4 @@ gh api --method PUT \
   --input .github/branch-protection.json
 ```
 
-Конфигурация требует успешный job `secret-and-core-check`, linear history, запрещает force pushes и удаление ветки. Не включайте required review, если проект остаётся личным и это блокирует ожидаемый release flow; при появлении команды добавьте review policy отдельным решением в `DECISIONS.md`.
-
-## Операционный минимум до защиты
-
-До включения server-side защиты автор изменений обязан: работать в тематической ветке, запускать Core checks, не force-push в `main`, проверять clean `git status`, выполнять release checklist и хранить project credentials только в ignored local configuration. Эта дисциплина не заменяет server-side policy, но сохраняет репозиторий совместимым с будущим включением защиты.
+После изменения правил проверьте статус через `gh api repos/puma04121990-blip/one-day-thermostat-gamepush/branches/main/protection` и выполните test pull request. Не ослабляйте `secret-and-core-check` ради ручного merge: исправьте CI либо обновите required context атомарно с workflow.
