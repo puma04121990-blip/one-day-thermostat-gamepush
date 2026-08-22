@@ -36,6 +36,7 @@ jobs:
             Assets/_Project/Core/Runtime/SaveContract.cs \
             Assets/_Project/Gameplay/Climate/AuthoritativeSystems.cs \
             Assets/_Project/Gameplay/Automation/AutomationAndDiagnostics.cs \
+            Assets/_Project/Gameplay/Automation/FirmwareModifierCatalog.cs \
             Assets/_Project/Content/Runtime/ScenarioDefinitions.cs \
             Assets/_Project/Tests/EditMode/CoreSmokeTests.cs
           mono /tmp/one-day-thermostat-core-tests.exe

@@ -1,6 +1,7 @@
 using System;
 using OneDayThermostat.Content;
 using OneDayThermostat.Core;
+using OneDayThermostat.Gameplay.Automation;
 
 namespace OneDayThermostat.Tests
 {
@@ -14,6 +15,7 @@ namespace OneDayThermostat.Tests
                 PolicyGovernorBlocksUnsafePulse();
                 SaveMapperRoundTripPreservesAuthority();
                 CampaignProgressionReachesStagedReturnBaseline();
+                FirmwareModifiersAreWhitelistedAndPreviewedBeforeCommit();
                 CanonicalScenarioCatalogMeetsFairnessContract();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
@@ -103,6 +105,36 @@ namespace OneDayThermostat.Tests
             Assert(world.Archive.UnlockedEntries.Contains("archive.silver_corridor"), "silver corridor aftermath should be archived");
             Assert(world.Archive.UnlockedEntries.Contains("archive.staged_return"), "staged return aftermath should be archived");
             Assert(world.Archive.UnlockedEntries.Contains("archive.day_complete"), "complete day should create a reflective archive entry");
+        }
+
+        private static void FirmwareModifiersAreWhitelistedAndPreviewedBeforeCommit()
+        {
+            var world = SimulationWorld.CreatePrologue(43);
+            var orchestrator = new SimulationOrchestrator();
+
+            var preview = orchestrator.PreviewFirmware(world, "firmware.air_first");
+            Assert(preview.Status == PolicyDecisionStatus.Valid, "known firmware must preview as a valid safe selection");
+            Assert(world.Policy.FirmwareId == "firmware.surface_memory", "preview must not mutate authoritative policy state");
+            Assert(orchestrator.PreviewFirmware(world, "firmware.unknown").Status == PolicyDecisionStatus.Blocked, "unknown firmware must be blocked by the whitelist");
+            Assert(orchestrator.PreviewModifier(world, "modifier.direct_boost", ModifierChannel.Sensor).Status == PolicyDecisionStatus.Blocked, "modifier channel mismatch must be blocked");
+
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SelectFirmware, TargetId = "firmware.air_first", Source = "test" });
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SelectSensorModifier, TargetId = "modifier.moisture_stipple", Source = "test" });
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SelectRouteModifier, TargetId = "modifier.direct_boost", Source = "test" });
+            orchestrator.Step(world);
+            Assert(world.Policy.FirmwareId == "firmware.air_first", "committed firmware should be authoritative after the next tick");
+            Assert(world.Policy.SensorModifierId == "modifier.moisture_stipple", "committed sensor modifier should be authoritative after the next tick");
+            Assert(world.Policy.RouteModifierId == "modifier.direct_boost", "committed route modifier should be authoritative after the next tick");
+            Assert(world.Policy.Log.Count >= 3, "configuration commits should leave a compact policy log trail");
+
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SetRoute, TargetId = "route.direct_lower", Value = .72f, Source = "test" });
+            orchestrator.Step(world);
+            Assert(world.Route("route.direct_lower").Openness > .80f, "direct boost must have a visible bounded route effect");
+            Assert(world.Route("route.direct_lower").Openness <= .821f, "direct boost must remain bounded and avoid unscaled tuning");
+
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SelectFirmware, TargetId = "firmware.unknown", Source = "test" });
+            orchestrator.Step(world);
+            Assert(world.Policy.FirmwareId == "firmware.air_first", "unknown firmware command must not replace the active configuration");
         }
 
         private static void SetRoute(SimulationWorld world, SimulationOrchestrator orchestrator, string routeId, float openness)

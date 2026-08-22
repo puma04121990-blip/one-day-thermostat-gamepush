@@ -8,7 +8,7 @@ namespace OneDayThermostat.Core
     public enum StressSource { BaseRun, StartStop, TemperatureDelta, MoistureResidual, NetworkPeak, RouteConflict, SurfaceLag, RecoveryOffset }
     public enum EventPhase { Dormant, Foreshadow, Warning, Active, Aftermath, Cooldown }
     public enum PolicyDecisionStatus { Suggested, Valid, Blocked, Superseded }
-    public enum CommandKind { SetRoute, Tune, Pulse, Isolate, Recover, CommitPolicy, CancelPolicy }
+    public enum CommandKind { SetRoute, Tune, Pulse, Isolate, Recover, CommitPolicy, CancelPolicy, SelectFirmware, SelectSensorModifier, SelectRouteModifier }
 
     [Serializable]
     public sealed class ZoneState

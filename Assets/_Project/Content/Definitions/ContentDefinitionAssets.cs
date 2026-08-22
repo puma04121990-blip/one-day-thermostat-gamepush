@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using OneDayThermostat.Core;
+using OneDayThermostat.Gameplay.Automation;
 using UnityEngine;
 
 namespace OneDayThermostat.Content.Definitions
@@ -60,13 +61,19 @@ namespace OneDayThermostat.Content.Definitions
         [SerializeField] private string titleKey;
         [SerializeField] private string effectKey;
         [SerializeField] private string tradeoffKey;
+        [SerializeField] private FirmwareTuning tuning;
         [SerializeField] private bool onlyChangesRankingVisibilityOrTiming = true;
 
         public string StableId => stableId;
         public string TitleKey => titleKey;
         public string EffectKey => effectKey;
         public string TradeoffKey => tradeoffKey;
-        public bool IsSafe => onlyChangesRankingVisibilityOrTiming && !string.IsNullOrWhiteSpace(stableId) && !string.IsNullOrWhiteSpace(effectKey) && !string.IsNullOrWhiteSpace(tradeoffKey);
+        public bool IsSafe => onlyChangesRankingVisibilityOrTiming && !string.IsNullOrWhiteSpace(stableId) && !string.IsNullOrWhiteSpace(titleKey) && !string.IsNullOrWhiteSpace(effectKey) && !string.IsNullOrWhiteSpace(tradeoffKey);
+
+        public FirmwareDefinition ToRuntimeDefinition()
+        {
+            return new FirmwareDefinition { Id = stableId, TitleKey = titleKey, EffectKey = effectKey, TradeoffKey = tradeoffKey, Tuning = tuning };
+        }
     }
 
     [CreateAssetMenu(menuName = "One Day Thermostat/Modifier", fileName = "Modifier_")]
@@ -74,13 +81,29 @@ namespace OneDayThermostat.Content.Definitions
     {
         [SerializeField] private string stableId;
         [SerializeField] private ModifierKind kind;
+        [SerializeField] private string titleKey;
         [SerializeField] private string effectKey;
         [SerializeField] private string singleClearCostKey;
+        [SerializeField] private ModifierTuning tuning;
 
         public string StableId => stableId;
         public ModifierKind Kind => kind;
+        public string TitleKey => titleKey;
         public string EffectKey => effectKey;
         public string SingleClearCostKey => singleClearCostKey;
-        public bool IsSafe => !string.IsNullOrWhiteSpace(stableId) && !string.IsNullOrWhiteSpace(effectKey) && !string.IsNullOrWhiteSpace(singleClearCostKey);
+        public bool IsSafe => !string.IsNullOrWhiteSpace(stableId) && !string.IsNullOrWhiteSpace(titleKey) && !string.IsNullOrWhiteSpace(effectKey) && !string.IsNullOrWhiteSpace(singleClearCostKey);
+
+        public ModifierDefinition ToRuntimeDefinition()
+        {
+            return new ModifierDefinition
+            {
+                Id = stableId,
+                Channel = kind == ModifierKind.Sensor ? ModifierChannel.Sensor : ModifierChannel.Route,
+                TitleKey = titleKey,
+                EffectKey = effectKey,
+                TradeoffKey = singleClearCostKey,
+                Tuning = tuning
+            };
+        }
     }
 }
