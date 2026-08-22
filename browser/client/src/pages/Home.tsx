@@ -2,6 +2,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
 import { achievementDefinition } from "@/game/AchievementCatalog";
+import { EngineLoadingProgress } from "@/components/EngineLoadingProgress";
 import { entriesFor } from "@/game/ConfigurationCatalog";
 import { serviceTraceKey } from "@/game/ServiceCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
@@ -14,6 +15,7 @@ const PhaserThermostat = lazy(() => import("@/components/PhaserThermostat").then
 
 const settingsKey = "one-day-thermostat.phaser.profile.v1";
 type Profile = { reducedMotion: boolean; lowSensory: boolean; textScale: number };
+type EngineStatus = "idle" | "loading" | "booting" | "ready";
 
 function loadProfile(): Profile {
   try {
@@ -45,9 +47,12 @@ export default function Home() {
   const [configurationPreview, setConfigurationPreview] = useState<ConfigurationPreview | null>(null);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("idle");
 
   const receiveState = useCallback((next: GameState) => setState(next), []);
   const refresh = useCallback(() => setState(simulation.snapshot()), [simulation]);
+  const handleEngineBoot = useCallback(() => setEngineStatus("booting"), []);
+  const handleEngineReady = useCallback(() => setEngineStatus("ready"), []);
 
   useEffect(() => {
     try { localStorage.setItem(settingsKey, JSON.stringify(profile)); } catch { /* Preference saving is opportunistic. */ }
@@ -69,9 +74,9 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKey);
   }, [refresh, simulation]);
 
-  const begin = () => { simulation.start(); refresh(); };
+  const begin = () => { setEngineStatus("loading"); simulation.start(); refresh(); };
   const choose = (route: RouteKind) => { simulation.chooseRoute(route); refresh(); };
-  const restart = () => { simulation.reset(); refresh(); setJournalOpen(false); };
+  const restart = () => { simulation.reset(); setEngineStatus("idle"); refresh(); setJournalOpen(false); };
   const inspectConfiguration = (id: string, channel: ConfigurationChannel) => setConfigurationPreview(simulation.previewConfiguration(id, channel));
   const commitConfiguration = () => {
     if (!configurationPreview) return;
@@ -83,7 +88,8 @@ export default function Home() {
   return (
     <main className={`thermostat-shell ${profile.lowSensory ? "low-sensory" : ""} ${profile.reducedMotion ? "reduce-motion" : ""}`} style={{ fontSize: `${profile.textScale}em` }}>
       <section className="game-stage" aria-label="Срез дома и материальные маршруты">
-        {state.started && <Suspense fallback={<div className="canvas-loading" aria-hidden="true" />}><PhaserThermostat simulation={simulation} onState={receiveState} reducedMotion={profile.reducedMotion} /></Suspense>}
+        {state.started && engineStatus !== "ready" && <EngineLoadingProgress status={engineStatus} reducedMotion={profile.reducedMotion} />}
+        {state.started && <Suspense fallback={<div className="canvas-loading" aria-hidden="true" />}><PhaserThermostat simulation={simulation} onState={receiveState} reducedMotion={profile.reducedMotion} onBoot={handleEngineBoot} onReady={handleEngineReady} /></Suspense>}
         <div className="grain" />
         <div className="copper-route-map" aria-hidden="true"><span className="route-node node-a" /><span className="route-node node-b" /><span className="route-node node-c" /><span className="route-tag">МАРШРУТ / 03</span></div>
 
