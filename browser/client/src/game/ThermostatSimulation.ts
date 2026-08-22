@@ -1,11 +1,12 @@
 import { DEFAULT_CONFIGURATION, findConfiguration, previewConfiguration } from "./ConfigurationCatalog";
 import { ACHIEVEMENT_CATALOG, EMPTY_ACHIEVEMENTS, isAchievementTriggered } from "./AchievementCatalog";
+import { BLACKOUT_ACTIONS, BLACKOUT_FORESHADOWS, RESERVE_FOCUS_SENSORS, RETURN_STEPS } from "./BlackoutCatalog";
 import { CONTENT_VERSION, migrateSavedState, SAVE_SCHEMA_VERSION } from "./ContentContract";
 import { climateEventDefinition, isBranchEmergencyEligible } from "./EventCatalog";
 import { isKnownPolicyId, policyDefinition, previewPolicy } from "./PolicyCatalog";
 import { diagnosticFor, scenarioAt, SENSOR_LAYERS } from "./ScenarioCatalog";
 import { createServiceTask } from "./ServiceCatalog";
-import type { ConfigurationChannel, ConfigurationPreview, DiagnosticStatus, EmergencyAction, EventPhase, FeedbackConsent, FeedbackTopic, GameState, JournalEntry, PolicyPreview, RouteKind, SensorLayer, TutorialBeatId } from "./types";
+import type { ConfigurationChannel, ConfigurationPreview, DiagnosticStatus, EmergencyAction, EventPhase, FeedbackConsent, FeedbackTopic, GameState, JournalEntry, PolicyPreview, ReplayCommand, ReplayRecord, ReserveActionId, ReserveFocusSensor, RouteKind, SensorLayer, TutorialBeatId } from "./types";
 
 const SAVE_KEY = "one-day-thermostat.phaser.save.v1";
 const TICK_MS = 200;
@@ -24,23 +25,38 @@ const newEvent = () => ({ id: "event.none", familyId: "none", seed: 104729, stat
 const newTutorial = () => ({ current: "observe_heat" as const, completed: [], hintsShown: [] });
 const newStewardship = () => ({ recognitions: [], repeatGate: [] });
 const newFeedback = () => ({ consent: "undecided" as const, entries: [] });
+const newBlackout = () => ({ phase: "inactive" as const, reserveCells: 5, foreshadows: [...BLACKOUT_FORESHADOWS] as [string, string], usedActions: [], passivePreparation: false });
+const newReplay = () => ({ version: 1 as const, commands: [] });
 
 export class ThermostatSimulation {
   private state: GameState;
   private accumulator = 0;
   private phaseTicks = 0;
+  private recordingReplay = true;
+  private persistenceEnabled = true;
 
-  constructor() { this.state = this.createInitial(); this.restore(); }
+  constructor(options: { restore?: boolean; scenarioSeed?: number; recordingReplay?: boolean } = {}) {
+    this.recordingReplay = options.recordingReplay ?? true;
+    this.persistenceEnabled = options.restore !== false;
+    this.state = this.createInitial(options.scenarioSeed);
+    if (options.restore !== false) this.restore();
+  }
+
+  private recordCommand(command: ReplayCommand) {
+    if (this.recordingReplay) this.state.replay.commands.push(command);
+  }
 
   public start() {
     if (this.state.started) return;
     this.state.started = true;
+    this.recordCommand({ tick: this.state.tick, kind: "start" });
     this.append("trace", "Начало наблюдения", "Дом не требует подчинения жильцов. Здесь можно собрать только материальный маршрут.");
     this.persist();
   }
 
   public chooseRoute(route: RouteKind) {
-    if (!this.state.started || this.state.phase !== "warning" || this.state.dayComplete) return;
+    if (!this.state.started || this.state.phase !== "warning" || this.state.dayComplete || this.state.blackout.phase !== "inactive") return;
+    this.recordCommand({ tick: this.state.tick, kind: "route", route });
     if (this.state.event.state === "warning") { this.chooseEmergency(route === "careful" ? "safe" : "direct"); return; }
     const scenario = scenarioAt(this.state.chainIndex);
     const option = route === "careful" ? scenario.careful : scenario.direct;
@@ -92,15 +108,17 @@ export class ThermostatSimulation {
   public previewConfiguration(id: string, channel: ConfigurationChannel): ConfigurationPreview { return previewConfiguration(this.state.configuration, id, channel, this.state.tick); }
 
   public queueConfiguration(preview: ConfigurationPreview) {
-    if (preview.status !== "valid" || preview.staleAtTick !== this.state.tick + 1 || !findConfiguration(preview.selectionId, preview.channel)) return false;
+    if (this.state.blackout.phase !== "inactive" || preview.status !== "valid" || preview.staleAtTick !== this.state.tick + 1 || !findConfiguration(preview.selectionId, preview.channel)) return false;
     this.state.configuration.pending = { ...preview };
+    this.recordCommand({ tick: this.state.tick, kind: "configuration", id: preview.selectionId, channel: preview.channel });
     this.persist();
     return true;
   }
 
   public selectSensor(layer: SensorLayer) {
-    if (!SENSOR_LAYERS.some((entry) => entry.id === layer)) return false;
+    if (this.state.blackout.phase !== "inactive" || !SENSOR_LAYERS.some((entry) => entry.id === layer)) return false;
     this.state.sensorLayer = layer;
+    this.recordCommand({ tick: this.state.tick, kind: "sensor", layer });
     if (layer === "heat") this.completeTutorial("observe_heat");
     if (layer === "vibration") this.completeTutorial("read_vibration");
     this.refreshDiagnostic();
@@ -111,22 +129,25 @@ export class ThermostatSimulation {
   public previewPolicy(id: string): PolicyPreview { return previewPolicy(this.state, id); }
 
   public queuePolicy(preview: PolicyPreview) {
-    if (preview.status !== "valid" || preview.staleAtTick !== this.state.tick + 1 || !isKnownPolicyId(preview.policyId)) return false;
+    if (this.state.blackout.phase !== "inactive" || preview.status !== "valid" || preview.staleAtTick !== this.state.tick + 1 || !isKnownPolicyId(preview.policyId)) return false;
     this.state.policy.pending = { ...preview };
+    this.recordCommand({ tick: this.state.tick, kind: "policy", id: preview.policyId });
     this.persist();
     return true;
   }
 
   public queueServiceRecovery(taskId: string) {
     const task = this.state.service.tasks.find((entry) => entry.id === taskId && !entry.resolved);
-    if (!task || this.state.service.pendingTaskId) return false;
+    if (this.state.blackout.phase !== "inactive" || !task || this.state.service.pendingTaskId) return false;
     this.state.service.pendingTaskId = taskId;
+    this.recordCommand({ tick: this.state.tick, kind: "service", taskId });
     this.persist();
     return true;
   }
 
   public setFeedbackConsent(consent: FeedbackConsent) {
     this.state.feedback.consent = consent;
+    this.recordCommand({ tick: this.state.tick, kind: "feedback_consent", consent });
     if (consent === "declined") this.state.feedback.entries = [];
     this.append("feedback", "Тепловой след: выбор сохранён", consent === "accepted" ? "Локальные, анонимные отметки понимания можно сохранить и экспортировать вручную." : "Никакие feedback-отметки не будут собираться.");
     this.persist();
@@ -135,12 +156,72 @@ export class ThermostatSimulation {
   public recordFeedback(topic: FeedbackTopic, understanding: "clear" | "unclear") {
     if (this.state.feedback.consent !== "accepted") return false;
     this.state.feedback.entries.push({ tick: this.state.tick, topic, understanding });
+    this.recordCommand({ tick: this.state.tick, kind: "feedback", topic, understanding });
     this.persist();
     return true;
   }
 
   public exportFeedback() {
     return JSON.stringify({ schemaVersion: 1, consent: this.state.feedback.consent, entries: this.state.feedback.entries }, null, 2);
+  }
+
+  public useReserve(action: ReserveActionId, focus?: ReserveFocusSensor) {
+    const blackout = this.state.blackout;
+    const actionable = blackout.phase === "reserve_triage" || blackout.phase === "dark_baseline";
+    if (!actionable || blackout.reserveCells <= 0 || blackout.usedActions.length >= 3 || blackout.usedActions.includes(action) || !BLACKOUT_ACTIONS[action]) return false;
+    if (action === "focus_sense" && (!focus || !RESERVE_FOCUS_SENSORS.some((entry) => entry.id === focus))) return false;
+    blackout.reserveCells -= 1;
+    blackout.usedActions.push(action);
+    if (action === "focus_sense" && focus) {
+      blackout.focusedSensor = focus;
+      this.state.sensorLayer = focus;
+      this.append("event", BLACKOUT_ACTIONS[action].title, `${BLACKOUT_ACTIONS[action].effect} Фокус: ${focus.toUpperCase()}. ${BLACKOUT_ACTIONS[action].consequence}`);
+    } else if (action === "lock_route") {
+      blackout.passivePreparation = true;
+      this.state.metrics.branch = clamp(this.state.metrics.branch - .05);
+      this.state.metrics.wear = clamp(this.state.metrics.wear - .04);
+      this.append("event", BLACKOUT_ACTIONS[action].title, `${BLACKOUT_ACTIONS[action].effect} ${BLACKOUT_ACTIONS[action].consequence}`);
+    } else {
+      this.state.metrics.surface = clamp(this.state.metrics.surface + .06);
+      this.state.metrics.air = clamp(this.state.metrics.air + .035);
+      this.append("event", BLACKOUT_ACTIONS[action].title, `${BLACKOUT_ACTIONS[action].effect} ${BLACKOUT_ACTIONS[action].consequence}`);
+    }
+    this.state.metrics.reserve = blackout.reserveCells / 5;
+    this.recordCommand({ tick: this.state.tick, kind: "reserve", action, focus });
+    this.persist();
+    return true;
+  }
+
+  public exportReplay() {
+    const record: ReplayRecord = {
+      version: 1,
+      schemaVersion: this.state.schemaVersion,
+      contentVersion: this.state.contentVersion,
+      scenarioSeed: this.state.scenarioSeed,
+      finalTick: this.state.tick,
+      commands: this.state.replay.commands.map((entry) => ({ ...entry }))
+    };
+    return JSON.stringify(record, null, 2);
+  }
+
+  public replayDeterministically() {
+    const replayed = ThermostatSimulation.replay(JSON.parse(this.exportReplay()) as ReplayRecord);
+    return Boolean(replayed && JSON.stringify(replayed.snapshot()) === JSON.stringify(this.snapshot()));
+  }
+
+  public static replay(record: ReplayRecord) {
+    if (record.version !== 1 || !Number.isInteger(record.scenarioSeed) || !Number.isInteger(record.finalTick) || record.finalTick < 0 || !Array.isArray(record.commands)) return undefined;
+    const commands = [...record.commands].sort((a, b) => a.tick - b.tick);
+    if (commands.some((entry, index) => !Number.isInteger(entry.tick) || entry.tick < 0 || entry.tick > record.finalTick || (index > 0 && entry.tick < commands[index - 1].tick))) return undefined;
+    const replayed = new ThermostatSimulation({ restore: false, scenarioSeed: record.scenarioSeed, recordingReplay: false });
+    let index = 0;
+    for (let tick = 0; tick <= record.finalTick; tick += 1) {
+      while (commands[index]?.tick === tick) replayed.applyReplayCommand(commands[index++]);
+      if (tick < record.finalTick) replayed.advance(TICK_MS);
+    }
+    if (index !== commands.length) return undefined;
+    replayed.state.replay.commands = commands.map((entry) => ({ ...entry }));
+    return replayed;
   }
 
   public markPlatformAchievementSynced(achievementId: string) {
@@ -158,6 +239,18 @@ export class ThermostatSimulation {
     while (this.accumulator >= TICK_MS) { this.accumulator -= TICK_MS; this.step(); }
   }
 
+  private applyReplayCommand(command: ReplayCommand) {
+    if (command.kind === "start") this.start();
+    if (command.kind === "route") this.chooseRoute(command.route);
+    if (command.kind === "sensor") this.selectSensor(command.layer);
+    if (command.kind === "configuration") this.queueConfiguration(this.previewConfiguration(command.id, command.channel));
+    if (command.kind === "policy") this.queuePolicy(this.previewPolicy(command.id));
+    if (command.kind === "service") this.queueServiceRecovery(command.taskId);
+    if (command.kind === "reserve") this.useReserve(command.action, command.focus);
+    if (command.kind === "feedback_consent") this.setFeedbackConsent(command.consent);
+    if (command.kind === "feedback") this.recordFeedback(command.topic, command.understanding);
+  }
+
   public snapshot(): GameState { return JSON.parse(JSON.stringify(this.state)) as GameState; }
 
   public reset() {
@@ -167,7 +260,20 @@ export class ThermostatSimulation {
     this.persist();
   }
 
-  private createInitial(): GameState {
+  public prepareBlackoutDemo() {
+    if (this.state.started) return;
+    this.start();
+    for (let index = 0; index < 7; index += 1) this.advance(TICK_MS);
+    this.chooseRoute("careful");
+    for (let index = 0; index < 14; index += 1) this.advance(TICK_MS);
+    for (let index = 0; index < 7; index += 1) this.advance(TICK_MS);
+    this.chooseRoute("careful");
+    for (let index = 0; index < 14; index += 1) this.advance(TICK_MS);
+    this.selectSensor("vibration");
+    for (let index = 0; index < 7; index += 1) this.advance(TICK_MS);
+  }
+
+  private createInitial(seed = 104729): GameState {
     const scenario = scenarioAt(0);
     return {
       schemaVersion: SAVE_SCHEMA_VERSION,
@@ -176,7 +282,7 @@ export class ThermostatSimulation {
       phase: "prologue",
       chainIndex: 0,
       tick: 0,
-      scenarioSeed: 104729,
+      scenarioSeed: seed,
       chainTitle: scenario.title,
       trace: scenario.trace,
       caption: scenario.caption,
@@ -196,6 +302,8 @@ export class ThermostatSimulation {
       tutorial: newTutorial(),
       stewardship: newStewardship(),
       feedback: newFeedback(),
+      blackout: newBlackout(),
+      replay: newReplay(),
       dayComplete: false
     };
   }
@@ -210,6 +318,11 @@ export class ThermostatSimulation {
     this.updateMetrics();
     this.advancePolicies();
     this.advanceEventDirector();
+    if (this.advanceBlackout()) {
+      this.refreshDiagnostic();
+      this.persist();
+      return;
+    }
     if (this.state.phase === "prologue" && this.phaseTicks >= 7) {
       const scenario = scenarioAt(this.state.chainIndex);
       this.state.phase = "warning";
@@ -291,6 +404,74 @@ export class ThermostatSimulation {
     this.append("event", "Ветвь 26: локальное предупреждение", `${event.reason} Два безопасных маршрута видимы до escalation.`);
   }
 
+  private advanceBlackout() {
+    const blackout = this.state.blackout;
+    if (blackout.phase === "inactive") {
+      const eligible = this.state.chainIndex === 2 && this.state.phase === "prologue" && this.phaseTicks >= 3 && this.state.tutorial.completed.includes("read_vibration");
+      if (!eligible) return false;
+      blackout.phase = "grid_warning";
+      blackout.startedTick = this.state.tick;
+      blackout.phaseStartedTick = this.state.tick;
+      blackout.reserveCells = 5;
+      blackout.foreshadows = [...BLACKOUT_FORESHADOWS];
+      this.state.trace = "Сеть даёт редкий пульс, а входная рама отвечает низким внешним тоном. У дома есть время выбрать пассивный порядок.";
+      this.state.caption = "[СЕТЬ: РЕДКИЙ ПУЛЬС] [РАМА: НИЗКИЙ ВНЕШНИЙ ТОН]";
+      this.append("event", "Grid Warning: пассивный порядок", `${blackout.foreshadows[0]}; ${blackout.foreshadows[1]}. Активные приборы не становятся целью управления.`);
+      return true;
+    }
+    const elapsed = this.state.tick - (blackout.phaseStartedTick ?? this.state.tick);
+    if (blackout.phase === "grid_warning" && elapsed >= 3) {
+      blackout.phase = "failover";
+      blackout.phaseStartedTick = this.state.tick;
+      this.state.options = [];
+      this.append("event", "Failover: сеть недоступна", "Карта остаётся ориентированной, но активные линии погасли. Резерв показывает пять отдельных импульсов.");
+      return true;
+    }
+    if (blackout.phase === "failover" && elapsed >= 1) {
+      blackout.phase = "reserve_triage";
+      blackout.phaseStartedTick = this.state.tick;
+      this.append("event", "Reserve Triage", "Сначала один фокусный сенсор и один пассивный маршрут. Резерв не заменяет сеть.");
+      return true;
+    }
+    if (blackout.phase === "reserve_triage" && elapsed >= 6) {
+      blackout.phase = "dark_baseline";
+      blackout.phaseStartedTick = this.state.tick;
+      this.append("archive", "Dark Baseline", "Дом сохраняет surface, boundary и ритмы без активной мощности. Остаётся до трёх осмысленных reserve действий.");
+      return true;
+    }
+    if (blackout.phase === "dark_baseline" && elapsed >= 10) {
+      blackout.phase = "grid_return";
+      blackout.returnStep = "listen";
+      blackout.phaseStartedTick = this.state.tick;
+      this.append("event", "Grid Return: Listen", RETURN_STEPS[0].copy);
+      return true;
+    }
+    if (blackout.phase === "grid_return" && elapsed >= 3) {
+      const current = blackout.returnStep ?? "listen";
+      const nextIndex = RETURN_STEPS.findIndex((entry) => entry.id === current) + 1;
+      const next = RETURN_STEPS[nextIndex];
+      if (next) {
+        blackout.returnStep = next.id;
+        blackout.phaseStartedTick = this.state.tick;
+        this.append("event", `Grid Return: ${next.title}`, next.copy);
+      } else {
+        blackout.phase = "afterglow";
+        blackout.phaseStartedTick = this.state.tick;
+        this.append("archive", "Afterglow: порядок сохранён", "Возврат идёт по очереди, а не одной кнопкой. Archive сохраняет blackout trace без оценки жильцов.");
+      }
+      return true;
+    }
+    if (blackout.phase === "afterglow" && elapsed >= 4) {
+      this.recordStewardship("blackout.passive-first", "Пассивный порядок", "Резерв был потрачен на наблюдение или маршрут, а не на обещание идеального исхода.");
+      this.state.blackout = { ...newBlackout(), reserveCells: blackout.reserveCells };
+      this.state.metrics.reserve = blackout.reserveCells / 5;
+      this.state.phase = "aftermath";
+      this.phaseTicks = 0;
+      return false;
+    }
+    return true;
+  }
+
   private completeTutorial(beat: TutorialBeatId) {
     if (this.state.tutorial.completed.includes(beat)) return;
     this.state.tutorial.completed.push(beat);
@@ -313,6 +494,15 @@ export class ThermostatSimulation {
   }
 
   private updateMetrics() {
+    if (this.state.blackout.phase !== "inactive") {
+      const protectedBuffer = this.state.blackout.passivePreparation ? .003 : 0;
+      this.state.metrics.network = clamp(this.state.metrics.network - .035);
+      this.state.metrics.surface = clamp(this.state.metrics.surface - (.008 - protectedBuffer));
+      this.state.metrics.air = clamp(this.state.metrics.air - .004);
+      this.state.metrics.wear = clamp(this.state.metrics.wear + .004);
+      this.state.metrics.reserve = this.state.blackout.reserveCells / 5;
+      return;
+    }
     const phaseModifier: Record<EventPhase, number> = { prologue: .015, warning: .02, active: -.018, aftermath: -.01, complete: -.004 };
     const direction = phaseModifier[this.state.phase];
     this.state.metrics.air = clamp(this.state.metrics.air + direction * (this.state.chainIndex === 0 ? 1 : -.3));
@@ -427,7 +617,10 @@ export class ThermostatSimulation {
 
   private append(tone: JournalEntry["tone"], title: string, body: string) { this.state.archive.push({ tick: this.state.tick, tone, title, body }); }
 
-  private persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* Local-first save is optional in restrictive contexts. */ } }
+  private persist() {
+    if (!this.persistenceEnabled) return;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* Local-first save is optional in restrictive contexts. */ }
+  }
 
   private restore() {
     try {

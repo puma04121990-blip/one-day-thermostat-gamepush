@@ -2,13 +2,14 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, ScanSearch, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
 import { achievementDefinition } from "@/game/AchievementCatalog";
+import { BLACKOUT_ACTIONS, RESERVE_FOCUS_SENSORS } from "@/game/BlackoutCatalog";
 import { EngineLoadingProgress } from "@/components/EngineLoadingProgress";
 import { entriesFor } from "@/game/ConfigurationCatalog";
 import { POLICY_CATALOG } from "@/game/PolicyCatalog";
 import { SENSOR_LAYERS } from "@/game/ScenarioCatalog";
 import { serviceTraceKey } from "@/game/ServiceCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
-import type { ConfigurationChannel, ConfigurationPreview, FeedbackTopic, GameState, PolicyPreview, RouteKind, SensorLayer } from "@/game/types";
+import type { ConfigurationChannel, ConfigurationPreview, FeedbackTopic, GameState, PolicyPreview, ReserveActionId, ReserveFocusSensor, RouteKind, SensorLayer } from "@/game/types";
 
 const LOGO = "/manus-storage/thermostat-route-mark_4292ba1f.png";
 const JOURNAL = "/manus-storage/thermostat-journal-backdrop_cb648cce.png";
@@ -40,7 +41,12 @@ const configurationSections: Array<{ channel: ConfigurationChannel; label: strin
 ];
 
 export default function Home() {
-  const simulation = useMemo(() => new ThermostatSimulation(), []);
+  const simulation = useMemo(() => {
+    const blackoutDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "blackout";
+    const instance = new ThermostatSimulation(blackoutDemo ? { restore: false } : undefined);
+    if (blackoutDemo) instance.prepareBlackoutDemo();
+    return instance;
+  }, []);
   const [state, setState] = useState<GameState>(() => simulation.snapshot());
   const [profile, setProfile] = useState<Profile>(loadProfile);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -51,7 +57,9 @@ export default function Home() {
   const [serviceOpen, setServiceOpen] = useState(false);
   const [sensorOpen, setSensorOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [engineStatus, setEngineStatus] = useState<EngineStatus>("idle");
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>(() => simulation.snapshot().started ? "loading" : "idle");
+  const [reserveFocus, setReserveFocus] = useState<ReserveFocusSensor>("surface");
+  const [replayStatus, setReplayStatus] = useState<"idle" | "verified" | "mismatch">("idle");
 
   const receiveState = useCallback((next: GameState) => setState(next), []);
   const refresh = useCallback(() => setState(simulation.snapshot()), [simulation]);
@@ -101,6 +109,17 @@ export default function Home() {
     link.click();
     URL.revokeObjectURL(href);
   };
+  const useReserve = (action: ReserveActionId) => { if (simulation.useReserve(action, action === "focus_sense" ? reserveFocus : undefined)) refresh(); };
+  const exportReplay = () => {
+    const blob = new Blob([simulation.exportReplay()], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "one-day-thermostat-replay.json";
+    link.click();
+    URL.revokeObjectURL(href);
+  };
+  const verifyReplay = () => setReplayStatus(simulation.replayDeterministically() ? "verified" : "mismatch");
   const openServiceTasks = state.service.tasks.filter((task) => !task.resolved);
 
   return (
@@ -165,6 +184,8 @@ export default function Home() {
           </div>
         </section>}
 
+        {state.blackout.phase !== "inactive" && <section className="blackout-hud" aria-live="polite" aria-label="Режим резерва"><div className="blackout-head"><span>RESERVE MODE</span><b>{state.blackout.phase.replace("_", " ").toUpperCase()}</b><small>GRID OFFLINE · активные линии не являются доступными действиями</small></div><div className="reserve-readout"><div className="reserve-cells" role="img" aria-label={`Резерв: ${state.blackout.reserveCells} из 5 ячеек`}><span className={state.blackout.reserveCells >= 1 ? "charged" : "spent"} /><span className={state.blackout.reserveCells >= 2 ? "charged" : "spent"} /><span className={state.blackout.reserveCells >= 3 ? "charged" : "spent"} /><span className={state.blackout.reserveCells >= 4 ? "charged" : "spent"} /><span className={state.blackout.reserveCells >= 5 ? "charged" : "spent"} /></div><p><b>B: {state.blackout.reserveCells} IMPULSES</b><small>Фокус: {state.blackout.focusedSensor?.toUpperCase() ?? "COARSE MAP"}</small></p></div>{(state.blackout.phase === "grid_warning" || state.blackout.phase === "failover") && <p className="blackout-copy">{state.blackout.foreshadows.join(" · ")}. Сначала дом сохраняет пассивные маршруты.</p>}{(state.blackout.phase === "reserve_triage" || state.blackout.phase === "dark_baseline") && <div className="reserve-actions"><label>Фокусный сенсор<select aria-label="Сенсорный фокус на резерве" value={reserveFocus} onChange={(event) => setReserveFocus(event.target.value as ReserveFocusSensor)}>{RESERVE_FOCUS_SENSORS.map((sensor) => <option key={sensor.id} value={sensor.id}>{sensor.label}</option>)}</select></label><div>{(["focus_sense", "lock_route", "pulse_shunt"] as ReserveActionId[]).map((action) => <button key={action} onClick={() => useReserve(action)} disabled={state.blackout.usedActions.includes(action) || state.blackout.reserveCells <= 0}><b>{BLACKOUT_ACTIONS[action].title}</b><small>{BLACKOUT_ACTIONS[action].cost} · {BLACKOUT_ACTIONS[action].effect}</small></button>)}</div><p>Осталось действий: {Math.max(0, 3 - state.blackout.usedActions.length)} из 3. Наблюдение общей карты не тратит резерв.</p></div>}{state.blackout.phase === "grid_return" && <p className="blackout-copy">Возврат сети идёт по шагам: {state.blackout.returnStep?.toUpperCase() ?? "LISTEN"}. Нет команды «включить всё».</p>}</section>}
+
         {state.dayComplete && <section className="completion-card"><span className="completion-mark">◆</span><p className="eyebrow">ДЕНЬ СОБРАН</p><h2>Восстанавливаемый baseline<br />на завтра уже есть.</h2><p>Следы остались в Archive. Нерешённые материальные задачи можно взять с собой, но игра не наказывает за них.</p><button className="primary-cta" onClick={restart}><RotateCcw size={17} />НАЧАТЬ НОВЫЙ ДЕНЬ</button></section>}
       </section>
 
@@ -176,6 +197,7 @@ export default function Home() {
         {state.stewardship.recognitions.length > 0 && <section className="stewardship-ledger" aria-label="Журнал бережности"><p className="eyebrow">ЖУРНАЛ БЕРЕЖНОСТИ</p>{[...state.stewardship.recognitions].reverse().map((entry) => <p key={entry.id}><b>{entry.title}</b> · {entry.reason}</p>)}</section>}
         <section className="achievement-ledger" aria-label="Локальные достижения"><div className="achievement-ledger-head"><Trophy size={18} /><span><p className="eyebrow">LOCAL ACHIEVEMENTS</p><b>Следы, а не power-up</b></span></div>{state.achievements.unlocked.length ? <div className="achievement-list">{state.achievements.unlocked.map((entry) => { const definition = achievementDefinition(entry.id); return <article key={entry.id}><span>◇</span><div><b>{definition?.title ?? entry.id}</b><p>{definition?.description ?? "Локальный trace сохранён."}</p><small>Т.{String(entry.unlockedTick).padStart(3, "0")}</small></div></article>; })}</div> : <p className="empty-note">Первые локальные следы появятся после авторитетных событий дня.</p>}{state.achievements.pendingPlatformTags.length > 0 && <p className="achievement-pending">PENDING MIRROR: {state.achievements.pendingPlatformTags.length}. Теги остаются local-first до подключения реального GamePush browser SDK.</p>}</section>
         <section className="feedback-ledger" aria-label="Локальная обратная связь"><p className="eyebrow">ТЕПЛОВОЙ СЛЕД / LOCAL FEEDBACK</p><p>Без отправки и без персональных данных: отметь, была ли ясна причина, цена или доступный формат.</p>{state.feedback.consent === "undecided" && <div><button onClick={() => { simulation.setFeedbackConsent("accepted"); refresh(); }}>СОГЛАСЕН НА ЛОКАЛЬНЫЕ ОТМЕТКИ</button><button onClick={() => { simulation.setFeedbackConsent("declined"); refresh(); }}>НЕ СОБИРАТЬ</button></div>}{state.feedback.consent === "accepted" && <div><button onClick={() => markFeedback("cause", "clear")}>ПРИЧИНА ЯСНА</button><button onClick={() => markFeedback("cost", "unclear")}>ЦЕНА НЕЯСНА</button><button onClick={() => markFeedback("accessibility", "clear")}>ФОРМАТ ДОСТУПЕН</button><button onClick={exportFeedback}>ЭКСПОРТ JSON</button></div>}{state.feedback.consent === "declined" && <small>Отметки отключены. Это решение можно изменить после перезапуска локального дня.</small>}</section>
+        <section className="replay-ledger" aria-label="Детерминированное повторное прохождение"><p className="eyebrow">DETERMINISTIC REPLAY / LOCAL</p><p>Семя сценария и {state.replay.commands.length} принятых authoritative команд можно экспортировать без профиля игрока. Проверка повторяет их в изолированном fixed-tick прогоне.</p><div><button onClick={exportReplay}>ЭКСПОРТ REPLAY JSON</button><button onClick={verifyReplay}>ПРОВЕРИТЬ ПОВТОР</button></div>{replayStatus !== "idle" && <small className={replayStatus}>{replayStatus === "verified" ? "◆ Снимок повторён точно: seed, команды и итоговый state совпали." : "◇ Снимок не совпал: log оставлен локально для диагностики."}</small>}</section>
         <div className="journal-list">{state.archive.length ? [...state.archive].reverse().map((entry, index) => <article key={`${entry.tick}-${index}`} className={`journal-entry ${entry.tone}`}><span>Т.{String(entry.tick).padStart(3, "0")}</span><div><b>{entry.title}</b><p>{entry.body}</p></div></article>) : <p className="empty-note">Начни наблюдение — первые следы появятся здесь.</p>}</div>
         {state.unresolved.length > 0 && <div className="service-note"><b>ВИДИМЫЕ SERVICE TRACE</b>{state.unresolved.map((item, index) => <p key={serviceTraceKey(item, index)}>— {item}</p>)}</div>}
       </aside>}
