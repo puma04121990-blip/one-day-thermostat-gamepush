@@ -262,4 +262,49 @@ describe("ThermostatSimulation", () => {
     simulation.setFeedbackConsent("declined");
     expect(simulation.snapshot().feedback.entries).toEqual([]);
   });
+
+  it("runs the browser blackout slice through two foreshadows, five-cell reserve, capped actions and staged return", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    advanceTicks(simulation, 14);
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    advanceTicks(simulation, 14);
+    simulation.selectSensor("vibration");
+    advanceTicks(simulation, 3);
+    expect(simulation.snapshot().blackout.phase).toBe("grid_warning");
+    expect(simulation.snapshot().blackout.foreshadows).toHaveLength(2);
+    advanceTicks(simulation, 4);
+    expect(simulation.snapshot().blackout.phase).toBe("reserve_triage");
+    expect(simulation.useReserve("focus_sense")).toBe(false);
+    expect(simulation.useReserve("focus_sense", "surface")).toBe(true);
+    expect(simulation.useReserve("lock_route")).toBe(true);
+    expect(simulation.useReserve("pulse_shunt")).toBe(true);
+    expect(simulation.snapshot().blackout.reserveCells).toBe(2);
+    expect(simulation.useReserve("pulse_shunt")).toBe(false);
+    advanceTicks(simulation, 6);
+    expect(simulation.snapshot().blackout.phase).toBe("dark_baseline");
+    advanceTicks(simulation, 10 + (3 * 5) + 4);
+    const afterglow = simulation.snapshot();
+    expect(afterglow.blackout.phase).toBe("inactive");
+    expect(afterglow.phase).toBe("aftermath");
+    expect(afterglow.stewardship.recognitions.map((entry) => entry.id)).toContain("blackout.passive-first");
+    expect(simulation.replayDeterministically()).toBe(true);
+  });
+
+  it("replays the same seed and accepted command log to an identical authoritative snapshot", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    simulation.selectSensor("network");
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    advanceTicks(simulation, 4);
+    expect(simulation.replayDeterministically()).toBe(true);
+    const record = JSON.parse(simulation.exportReplay());
+    const replayed = ThermostatSimulation.replay(record);
+    expect(replayed?.snapshot()).toEqual(simulation.snapshot());
+    expect(ThermostatSimulation.replay({ ...record, finalTick: -1 })).toBeUndefined();
+  });
 });

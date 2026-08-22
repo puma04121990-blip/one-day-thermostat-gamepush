@@ -58,4 +58,22 @@ describe("content-version save fallback", () => {
     expect(migration?.state.stewardship.recognitions).toEqual([]);
     expect(migration?.state.feedback).toEqual({ consent: "undecided", entries: [] });
   });
+
+  it("adds safe blackout and replay defaults to a schema 4 save and constrains malformed reserve data", () => {
+    const legacy = new ThermostatSimulation().snapshot() as unknown as Record<string, unknown>;
+    legacy.schemaVersion = 4;
+    delete legacy.blackout;
+    delete legacy.replay;
+    const defaults = migrateSavedState(legacy);
+    expect(defaults?.state.blackout).toMatchObject({ phase: "inactive", reserveCells: 5, usedActions: [] });
+    expect(defaults?.state.replay).toEqual({ version: 1, commands: [] });
+
+    legacy.blackout = { phase: "dark_baseline", reserveCells: 99, usedActions: ["lock_route", "lock_route", "unknown"], focusedSensor: "unknown" };
+    legacy.replay = { commands: [{ tick: 2, kind: "route", route: "careful" }, { tick: -1, kind: "unknown" }] };
+    const normalized = migrateSavedState(legacy);
+    expect(normalized?.state.blackout.reserveCells).toBe(5);
+    expect(normalized?.state.blackout.usedActions).toEqual(["lock_route"]);
+    expect(normalized?.state.blackout.focusedSensor).toBeUndefined();
+    expect(normalized?.state.replay.commands).toEqual([{ tick: 2, kind: "route", route: "careful" }]);
+  });
 });

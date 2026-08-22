@@ -1,5 +1,6 @@
 // Design: authored content can change, but a local day must remain recoverable. Unknown IDs are removed or reset to canonical defaults; no update may create power or a hard fail.
 import { DEFAULT_CONFIGURATION, findConfiguration } from "./ConfigurationCatalog";
+import { BLACKOUT_FORESHADOWS, RETURN_STEPS } from "./BlackoutCatalog";
 import { isKnownAchievementId } from "./AchievementCatalog";
 import { climateEventDefinition } from "./EventCatalog";
 import { isKnownPolicyId } from "./PolicyCatalog";
@@ -7,12 +8,15 @@ import { diagnosticFor, scenarioAt, SENSOR_LAYERS } from "./ScenarioCatalog";
 import { isKnownServiceTaskId, serviceTemplateFor } from "./ServiceCatalog";
 import type { ConfigurationChannel, GameState, SensorLayer } from "./types";
 
-export const SAVE_SCHEMA_VERSION = 4;
-export const CONTENT_VERSION = "browser-content-2026.08-master.2";
+export const SAVE_SCHEMA_VERSION = 5;
+export const CONTENT_VERSION = "browser-content-2026.08-master.3";
 const CHANNELS: ConfigurationChannel[] = ["firmware", "sensor", "route"];
 const PHASES = ["prologue", "warning", "active", "aftermath", "complete"];
 const EVENT_STATES = ["dormant", "foreshadow", "warning", "active", "stabilized", "aftermath"];
 const TUTORIAL_BEATS = ["observe_heat", "read_vibration", "compare_routes", "remember_consequence", "complete"];
+const BLACKOUT_PHASES = ["inactive", "grid_warning", "failover", "reserve_triage", "dark_baseline", "grid_return", "afterglow"];
+const RESERVE_ACTIONS = ["focus_sense", "lock_route", "pulse_shunt"];
+const FOCUS_SENSORS = ["surface", "vibration", "moisture"];
 
 type MigrationResult = { state: GameState; notes: string[] };
 
@@ -114,6 +118,29 @@ export function migrateSavedState(raw: unknown): MigrationResult | undefined {
     consent: feedback?.consent === "accepted" || feedback?.consent === "declined" ? feedback.consent : "undecided",
     entries: feedback?.consent === "accepted" && Array.isArray(feedback.entries) ? feedback.entries.filter((entry) => object(entry) && typeof object(entry)?.tick === "number" && ["cause", "cost", "accessibility"].includes(String(object(entry)?.topic)) && ["clear", "unclear"].includes(String(object(entry)?.understanding))) as GameState["feedback"]["entries"] : []
   };
+  const blackout = object(saved.blackout);
+  const blackoutPhase = typeof blackout?.phase === "string" && BLACKOUT_PHASES.includes(blackout.phase) ? blackout.phase as GameState["blackout"]["phase"] : "inactive";
+  const usedActions = Array.isArray(blackout?.usedActions) ? blackout.usedActions.filter((entry, index, source) => typeof entry === "string" && RESERVE_ACTIONS.includes(entry) && source.indexOf(entry) === index).slice(0, 3) as GameState["blackout"]["usedActions"] : [];
+  const reserveCells = typeof blackout?.reserveCells === "number" ? Math.max(0, Math.min(5, Math.floor(blackout.reserveCells))) : 5;
+  const returnStep = typeof blackout?.returnStep === "string" && RETURN_STEPS.some((entry) => entry.id === blackout.returnStep) ? blackout.returnStep as GameState["blackout"]["returnStep"] : undefined;
+  state.blackout = {
+    phase: blackoutPhase,
+    reserveCells,
+    foreshadows: [...BLACKOUT_FORESHADOWS],
+    startedTick: typeof blackout?.startedTick === "number" ? Math.max(0, Math.floor(blackout.startedTick)) : undefined,
+    phaseStartedTick: typeof blackout?.phaseStartedTick === "number" ? Math.max(0, Math.floor(blackout.phaseStartedTick)) : undefined,
+    focusedSensor: typeof blackout?.focusedSensor === "string" && FOCUS_SENSORS.includes(blackout.focusedSensor) ? blackout.focusedSensor as GameState["blackout"]["focusedSensor"] : undefined,
+    usedActions,
+    returnStep,
+    passivePreparation: Boolean(blackout?.passivePreparation)
+  };
+  if (blackoutPhase !== "inactive") state.metrics.reserve = reserveCells / 5;
+  const replay = object(saved.replay);
+  const commands = Array.isArray(replay?.commands) ? replay.commands.filter((entry) => {
+    const value = object(entry);
+    return value && typeof value.tick === "number" && Number.isInteger(value.tick) && value.tick >= 0 && typeof value.kind === "string" && ["start", "route", "sensor", "configuration", "policy", "service", "reserve", "feedback_consent", "feedback"].includes(value.kind);
+  }).slice(0, 400) as GameState["replay"]["commands"] : [];
+  state.replay = { version: 1, commands };
   if (storedSchema < SAVE_SCHEMA_VERSION) notes.push(`Local save migrated from schema ${storedSchema}.`);
   if (saved.contentVersion !== CONTENT_VERSION) notes.push("Контент обновлён; local day сверено с текущим canonical catalog.");
   state.schemaVersion = SAVE_SCHEMA_VERSION;

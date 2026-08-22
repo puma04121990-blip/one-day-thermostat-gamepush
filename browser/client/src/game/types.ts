@@ -56,6 +56,35 @@ export type FeedbackTopic = "cause" | "cost" | "accessibility";
 export interface LocalFeedbackEntry { tick: number; topic: FeedbackTopic; understanding: "clear" | "unclear"; }
 export interface LocalFeedbackState { consent: FeedbackConsent; entries: LocalFeedbackEntry[]; }
 
+export type BlackoutPhase = "inactive" | "grid_warning" | "failover" | "reserve_triage" | "dark_baseline" | "grid_return" | "afterglow";
+export type ReserveFocusSensor = "surface" | "vibration" | "moisture";
+export type ReserveActionId = "focus_sense" | "lock_route" | "pulse_shunt";
+export type GridReturnStep = "listen" | "stabilize" | "reintroduce" | "observe" | "afterglow";
+export interface BlackoutState {
+  phase: BlackoutPhase;
+  reserveCells: number;
+  foreshadows: [string, string];
+  startedTick?: number;
+  phaseStartedTick?: number;
+  focusedSensor?: ReserveFocusSensor;
+  usedActions: ReserveActionId[];
+  returnStep?: GridReturnStep;
+  passivePreparation: boolean;
+}
+
+export type ReplayCommand =
+  | { tick: number; kind: "start" }
+  | { tick: number; kind: "route"; route: RouteKind }
+  | { tick: number; kind: "sensor"; layer: SensorLayer }
+  | { tick: number; kind: "configuration"; id: string; channel: ConfigurationChannel }
+  | { tick: number; kind: "policy"; id: string }
+  | { tick: number; kind: "service"; taskId: string }
+  | { tick: number; kind: "reserve"; action: ReserveActionId; focus?: ReserveFocusSensor }
+  | { tick: number; kind: "feedback_consent"; consent: FeedbackConsent }
+  | { tick: number; kind: "feedback"; topic: FeedbackTopic; understanding: "clear" | "unclear" };
+export interface ReplayState { version: 1; commands: ReplayCommand[]; }
+export interface ReplayRecord { version: 1; schemaVersion: number; contentVersion: string; scenarioSeed: number; finalTick: number; commands: ReplayCommand[]; }
+
 export interface GameState {
   schemaVersion: number;
   contentVersion: string;
@@ -83,5 +112,7 @@ export interface GameState {
   tutorial: TutorialState;
   stewardship: StewardshipState;
   feedback: LocalFeedbackState;
+  blackout: BlackoutState;
+  replay: ReplayState;
   dayComplete: boolean;
 }

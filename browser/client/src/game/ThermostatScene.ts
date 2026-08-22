@@ -100,6 +100,29 @@ export class ThermostatScene extends Phaser.Scene {
       g.fillStyle(index === state.chainIndex + 1 ? 0xf6d18b : routeColor, 0.94);
       g.fillRect(point.x - 4, point.y - 4, 8, 8);
     });
+    if (state.blackout.phase !== "inactive") {
+      g.fillStyle(0x07101a, 0.56).fillRect(width * 0.31, height * 0.14, width * 0.57, height * 0.66);
+      g.lineStyle(1, 0x6f7d80, 0.28);
+      for (let row = 0; row < 6; row += 1) g.lineBetween(width * 0.33, height * (.2 + row * .1), width * .86, height * (.2 + row * .1));
+      for (let column = 0; column < 7; column += 1) g.lineBetween(width * (.34 + column * .075), height * .2, width * (.34 + column * .075), height * .7);
+      const coreX = width * .54;
+      const coreY = height * .54;
+      for (let cell = 0; cell < 5; cell += 1) {
+        const angle = -Math.PI / 2 + cell * (Math.PI / 4);
+        const x = coreX + Math.cos(angle) * 32;
+        const y = coreY + Math.sin(angle) * 32;
+        g.fillStyle(cell < state.blackout.reserveCells ? 0xc8834a : 0x4b5960, .96).fillRect(x - 4, y - 8, 8, 16);
+      }
+      g.fillStyle(0xd7b172, .82).fillCircle(coreX, coreY, 8);
+      if (state.blackout.focusedSensor) {
+        const focusX = state.blackout.focusedSensor === "surface" ? width * .63 : state.blackout.focusedSensor === "vibration" ? width * .47 : width * .72;
+        const focusY = state.blackout.focusedSensor === "surface" ? height * .58 : state.blackout.focusedSensor === "vibration" ? height * .4 : height * .32;
+        g.lineStyle(2, 0x8fbec2, .82).lineBetween(coreX, coreY, focusX, focusY);
+      }
+      const blackoutLabel = this.add.text(width * .58, height * .18, `RESERVE MODE / ${state.blackout.phase.toUpperCase().replace("_", " ")} · B:${state.blackout.reserveCells}`, { fontFamily: "IBM Plex Mono", fontSize: "10px", color: "#E6C27C", stroke: "#07101A", strokeThickness: 3 });
+      blackoutLabel.setOrigin(.5);
+      this.labelLayer?.add(blackoutLabel);
+    }
     if (state.event.state === "foreshadow" || state.event.state === "warning" || state.event.state === "active") {
       const alpha = state.event.state === "foreshadow" ? 0.44 : 0.78;
       g.lineStyle(2, 0xe1a657, alpha);
