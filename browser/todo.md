@@ -1,5 +1,17 @@
 # Runtime fix checklist
 
+## Master documentation, full implementation and presentation package
+
+- [x] Extract and inventory every authoritative requirement, appendix and presentation claim from the supplied master Markdown and PDFs.
+- [x] Produce a traceability matrix that classifies requirements as implemented, browser-adapted, deferred, external-platform dependent or contradictory.
+- [x] Update the browser-first canon/decision log where Unity-only source instructions must be adapted without changing player-facing principles.
+- [x] Implement the highest-priority missing playable content systems with deterministic fixed-tick state, local-first saves and accessible HTML controls.
+- [ ] Add authored tutorial, crisis, resident-boundary and replayability content only where it fits the browser vertical slice without fabricating player data.
+- [ ] Add regression coverage for each new authoritative state transition, migration path and content fallback.
+- [ ] Prepare a concise, evidence-based publisher/investor presentation from the implemented browser state and supplied pitch sources.
+- [ ] Generate the requested presentation deliverables only after the content outline and claims are verified.
+- [ ] Run local tests, browser checks, protected GitHub PR CI, merge and checkpoint the integrated project.
+
 - [x] Verify why `ThermostatScene.init()` does not receive `simulation` before `create()`.
 - [x] Start the scene only after Phaser boot and pass data through the supported scene lifecycle.
 - [x] Prefer Canvas renderer when WebGL framebuffer support is unavailable or unreliable.

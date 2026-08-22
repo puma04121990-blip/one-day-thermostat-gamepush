@@ -65,19 +65,24 @@ export class ThermostatScene extends Phaser.Scene {
     if (!g) return;
     const width = this.scale.width;
     const height = this.scale.height;
+    const sensorTint: Record<GameState["sensorLayer"], number> = { heat: 0xc8834a, air: 0x8fbec2, vibration: 0xe1bc7d, moisture: 0xb9d3cf, network: 0xd69a6b, surface: 0xe5b76d, memory: 0xc7bea0 };
+    const activeTint = sensorTint[state.sensorLayer];
     const rooms = [
       { x: width * 0.42, y: height * 0.22, w: width * 0.18, h: height * 0.22, label: "ПОРОГ", active: state.chainIndex === 0 },
       { x: width * 0.63, y: height * 0.2, w: width * 0.21, h: height * 0.23, label: "КУХНЯ", active: state.chainIndex === 1 },
       { x: width * 0.54, y: height * 0.52, w: width * 0.25, h: height * 0.22, label: "ЗАПАДНАЯ СТЕНА", active: state.chainIndex === 2 }
     ];
     rooms.forEach((room) => {
-      g.lineStyle(1, room.active ? 0xc8834a : 0x9ab0ba, room.active ? 0.86 : 0.26);
-      g.fillStyle(room.active ? 0xc8834a : 0x142537, room.active ? 0.08 : 0.18);
+      g.lineStyle(1, room.active ? activeTint : 0x9ab0ba, room.active ? 0.86 : 0.26);
+      g.fillStyle(room.active ? activeTint : 0x142537, room.active ? 0.08 : 0.18);
       g.fillRoundedRect(room.x, room.y, room.w, room.h, 6);
       g.strokeRoundedRect(room.x, room.y, room.w, room.h, 6);
       const label = this.add.text(room.x + 12, room.y + 12, room.label, { fontFamily: "IBM Plex Mono", fontSize: "11px", color: room.active ? "#F4E6CA" : "#B8C7C7" });
       this.labelLayer?.add(label);
     });
+    const diagnosticLabel = this.add.text(width * 0.54, height * 0.12, `SENSOR / ${state.sensorLayer.toUpperCase()}  ·  ${state.diagnostic.status.toUpperCase()}`, { fontFamily: "IBM Plex Mono", fontSize: "10px", color: "#E6C27C", stroke: "#09121D", strokeThickness: 3 });
+    diagnosticLabel.setOrigin(.5);
+    this.labelLayer?.add(diagnosticLabel);
     const routeColor = state.phase === "warning" ? 0xc8834a : 0xe5b76d;
     const routeAlpha = state.phase === "warning" ? 0.92 : 0.42;
     const points = [

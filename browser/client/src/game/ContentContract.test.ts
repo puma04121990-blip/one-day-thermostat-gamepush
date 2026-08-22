@@ -25,4 +25,20 @@ describe("content-version save fallback", () => {
     future.schemaVersion = SAVE_SCHEMA_VERSION + 1;
     expect(migrateSavedState(future)).toBeUndefined();
   });
+
+  it("adds canonical master sensor, diagnostic, boundary and policy state to a legacy browser save", () => {
+    const legacy = new ThermostatSimulation().snapshot() as unknown as Record<string, unknown>;
+    legacy.schemaVersion = 2;
+    delete legacy.sensorLayer;
+    delete legacy.diagnostic;
+    delete legacy.scenario;
+    delete legacy.boundaries;
+    delete legacy.policy;
+    const migration = migrateSavedState(legacy);
+    expect(migration?.state.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(migration?.state.sensorLayer).toBe("heat");
+    expect(migration?.state.diagnostic.layer).toBe("heat");
+    expect(migration?.state.boundaries[0]?.never).toContain("Не диагностировать");
+    expect(migration?.state.policy.active).toEqual([]);
+  });
 });

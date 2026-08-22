@@ -30,6 +30,18 @@ describe("ThermostatSimulation", () => {
     expect(state.options.map((option) => option.id)).toEqual(["careful", "direct"]);
   });
 
+  it("switches semantic sensor diagnostics without allowing presentation to mutate the scenario", () => {
+    const simulation = new ThermostatSimulation();
+    const before = simulation.snapshot();
+    expect(simulation.selectSensor("network")).toBe(true);
+    const after = simulation.snapshot();
+    expect(after.sensorLayer).toBe("network");
+    expect(after.diagnostic.layer).toBe("network");
+    expect(after.diagnostic.causes).toHaveLength(2);
+    expect(after.scenario.id).toBe(before.scenario.id);
+    expect(simulation.selectSensor("unknown" as "heat")).toBe(false);
+  });
+
   it("keeps a direct route recoverable and records a material trace", () => {
     const simulation = new ThermostatSimulation();
     simulation.start();
@@ -179,5 +191,37 @@ describe("ThermostatSimulation", () => {
     expect(simulation.snapshot().achievements.unlocked.map((entry) => entry.id)).not.toContain("achievement.quiet_route");
     advanceTicks(simulation, 1);
     expect(simulation.snapshot().achievements.unlocked.map((entry) => entry.id)).toContain("achievement.quiet_route");
+  });
+
+  it("activates a valid bounded policy only at the next tick and records its stop condition", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    advanceTicks(simulation, 14);
+    advanceTicks(simulation, 7);
+    const preview = simulation.previewPolicy("policy.moisture_window");
+    expect(preview.status).toBe("valid");
+    expect(simulation.queuePolicy(preview)).toBe(true);
+    expect(simulation.snapshot().policy.active).toHaveLength(0);
+    advanceTicks(simulation, 1);
+    expect(simulation.snapshot().policy.active.map((entry) => entry.id)).toContain("policy.moisture_window");
+    expect(simulation.snapshot().achievements.unlocked.map((entry) => entry.id)).toContain("achievement.policy_window");
+    advanceTicks(simulation, 6);
+    const state = simulation.snapshot();
+    expect(state.policy.active).toHaveLength(0);
+    expect(state.policy.log.at(-1)?.state).toBe("ended");
+    expect(state.archive.some((entry) => entry.tone === "policy" && entry.title.includes("stop condition"))).toBe(true);
+  });
+
+  it("blocks a policy outside its authored scenario before it can enter the command queue", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    const preview = simulation.previewPolicy("policy.staged_return");
+    expect(preview.status).toBe("blocked");
+    expect(preview.reason).toContain("Контекст");
+    expect(simulation.queuePolicy(preview)).toBe(false);
+    expect(simulation.snapshot().policy.pending).toBeUndefined();
   });
 });
