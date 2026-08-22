@@ -15,3 +15,8 @@ export function createServiceTask(reasonId: string, tick: number): ServiceTask |
   const template = serviceTemplateFor(reasonId);
   return template ? { ...template, createdTick: tick, resolved: false } : undefined;
 }
+
+/** UI keys must never use display copy alone: distinct route costs may share a human-readable label. */
+export function serviceTraceKey(trace: string, index: number) {
+  return `service-trace-${index}-${trace}`;
+}
