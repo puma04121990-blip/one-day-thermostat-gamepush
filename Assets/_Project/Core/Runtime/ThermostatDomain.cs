@@ -173,6 +173,8 @@ namespace OneDayThermostat.Core
         public readonly HashSet<string> UnlockedEntries = new HashSet<string>();
         public readonly List<string> UnresolvedCosts = new List<string>();
         public readonly List<ServiceFollowUp> ServiceFollowUps = new List<ServiceFollowUp>();
+        public readonly HashSet<string> UnlockedAchievements = new HashSet<string>();
+        public readonly List<string> PendingPlatformAchievements = new List<string>();
         public bool EndOfDayReviewAvailable;
         public string EndOfDayReviewKey = string.Empty;
 
@@ -187,6 +189,8 @@ namespace OneDayThermostat.Core
             foreach (var entry in UnlockedEntries) result.UnlockedEntries.Add(entry);
             result.UnresolvedCosts.AddRange(UnresolvedCosts);
             result.ServiceFollowUps.AddRange(ServiceFollowUps.Select(x => x.Clone()));
+            foreach (var achievement in UnlockedAchievements) result.UnlockedAchievements.Add(achievement);
+            result.PendingPlatformAchievements.AddRange(PendingPlatformAchievements);
             return result;
         }
     }

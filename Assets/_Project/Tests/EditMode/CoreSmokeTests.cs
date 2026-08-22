@@ -3,6 +3,7 @@ using OneDayThermostat.Content;
 using OneDayThermostat.Content.Localization;
 using OneDayThermostat.Core;
 using OneDayThermostat.Gameplay.Automation;
+using OneDayThermostat.Gameplay.Progression;
 
 namespace OneDayThermostat.Tests
 {
@@ -19,6 +20,7 @@ namespace OneDayThermostat.Tests
                 FirmwareModifiersAreWhitelistedAndPreviewedBeforeCommit();
                 ServiceFollowUpsAreRecoverableAndPersisted();
                 LocalizationCatalogProvidesFallbackAndRejectsDuplicateKeys();
+                ProgressionQueuesPlatformSyncWithoutDuplicateUnlocks();
                 CanonicalScenarioCatalogMeetsFairnessContract();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
@@ -110,6 +112,24 @@ namespace OneDayThermostat.Tests
             Assert(world.Archive.UnlockedEntries.Contains("archive.day_complete"), "complete day should create a reflective archive entry");
             Assert(world.Archive.EndOfDayReviewAvailable, "recoverable day completion should offer an end-of-day review");
             Assert(world.Archive.EndOfDayReviewKey == "review.day.stewardship_complete", "careful completion should communicate stewardship baseline");
+        }
+
+        private static void ProgressionQueuesPlatformSyncWithoutDuplicateUnlocks()
+        {
+            var world = SimulationWorld.CreatePrologue(53);
+            var progression = new AchievementProgressionSystem();
+            world.Archive.UnlockedEntries.Add("archive.threshold_route");
+            progression.Step(world, .2f);
+            Assert(world.Archive.UnlockedAchievements.Contains("achievement.threshold_route"), "archive trigger should create a local achievement unlock");
+            Assert(world.Archive.PendingPlatformAchievements.Count == 1, "local unlock should queue exactly one platform sync tag");
+            progression.Step(world, .2f);
+            Assert(world.Archive.PendingPlatformAchievements.Count == 1, "repeated ticks must not duplicate a pending platform tag");
+            Assert(progression.MarkPlatformSynced(world, "achievement.threshold_route"), "known pending achievement should be acknowledged after platform send");
+            Assert(world.Archive.PendingPlatformAchievements.Count == 0, "acknowledged achievement should leave the pending queue");
+
+            world.Archive.UnlockedEntries.Add("archive.threshold_route");
+            var restored = SaveMapper.ToWorld(SaveMapper.ToDto(world, "achievement_slot", "test"));
+            Assert(restored.Archive.UnlockedAchievements.Contains("achievement.threshold_route"), "achievement state should survive save round-trip");
         }
 
         private static void LocalizationCatalogProvidesFallbackAndRejectsDuplicateKeys()

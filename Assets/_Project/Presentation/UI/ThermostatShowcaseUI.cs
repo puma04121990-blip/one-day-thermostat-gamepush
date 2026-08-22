@@ -23,6 +23,7 @@ namespace OneDayThermostat.Presentation.UI
         private Text _policy;
         private Text _configuration;
         private Text _service;
+        private Text _achievements;
         private Button _serviceAction;
         private Text _archive;
         private Button _routeA;
@@ -137,6 +138,7 @@ namespace OneDayThermostat.Presentation.UI
             _lowSensory.onValueChanged.AddListener(_ => ApplyAccessibility());
 
             _archive = CreateText(canvasRoot.transform, "Archive", "АРХИВ: первый поток открыт", 14, new Color(.88f, .91f, .92f), TextAnchor.LowerRight, new Vector2(1300, 28), new Vector2(-28, 72));
+            _achievements = CreateText(canvasRoot.transform, "Achievements", "ДОСТИЖЕНИЯ: локальный журнал готов", 14, _amber, TextAnchor.LowerLeft, new Vector2(356, 28), new Vector2(1020, 72));
             BuildOnboarding(canvasRoot.transform);
             Render(_driver.CurrentSnapshot);
         }
@@ -218,6 +220,7 @@ namespace OneDayThermostat.Presentation.UI
             UpdateRouteChoices(snapshot);
             UpdateConfigurationSummary(snapshot);
             UpdateServiceSummary(snapshot);
+            UpdateAchievementSummary(snapshot);
         }
 
         private void CommitPrimaryRoute()
@@ -299,6 +302,14 @@ namespace OneDayThermostat.Presentation.UI
             if (_lastConfigurationPreview.ModifierChannel.HasValue) _driver.SelectModifier(_lastConfigurationPreview.SelectionId, _lastConfigurationPreview.ModifierChannel.Value);
             else _driver.SelectFirmware(_lastConfigurationPreview.SelectionId);
             _policy.text = "Policy Log: конфигурация поставлена в очередь. Следующий тик сохранит видимый компромисс.";
+        }
+
+        private void UpdateAchievementSummary(SimulationSnapshot snapshot)
+        {
+            if (_achievements == null) return;
+            _achievements.text = snapshot.Archive.UnlockedAchievements.Count == 0
+                ? "ДОСТИЖЕНИЯ: следы дня ещё собираются."
+                : "ДОСТИЖЕНИЯ: " + string.Join(" · ", snapshot.Archive.UnlockedAchievements.Take(2).Select(AchievementLabel)) + (snapshot.Archive.PendingPlatformAchievements.Count > 0 ? "\nЛокально сохранено; ждёт GamePush: " + snapshot.Archive.PendingPlatformAchievements.Count : string.Empty);
         }
 
         private void CompleteFirstService()
@@ -392,6 +403,11 @@ namespace OneDayThermostat.Presentation.UI
             return phase == EventPhase.Foreshadow ? "предвестник" : phase == EventPhase.Warning ? "внимание" : phase == EventPhase.Active ? "активный след" : phase == EventPhase.Aftermath ? "новый baseline" : "ожидание";
         }
 
+        private static string AchievementLabel(string key)
+        {
+            return LocalizationProvider.Resolve(key + ".title");
+        }
+
         private static string ConfigurationTitle(string key)
         {
             return LocalizationProvider.Resolve(key + ".title");
@@ -432,7 +448,8 @@ namespace OneDayThermostat.Presentation.UI
 
         private static string ArchiveLabel(string key)
         {
-            return LocalizationProvider.Resolve(key);
+            const string achievementPrefix = "archive.achievement.";
+            return key != null && key.StartsWith(achievementPrefix) ? AchievementLabel(key.Substring(achievementPrefix.Length)) : LocalizationProvider.Resolve(key);
         }
 
         private static string OutcomeLabel(string key)

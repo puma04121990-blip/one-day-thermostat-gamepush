@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OneDayThermostat.Gameplay.Automation;
 using OneDayThermostat.Gameplay.Climate;
+using OneDayThermostat.Gameplay.Progression;
 
 namespace OneDayThermostat.Core
 {
@@ -14,6 +15,7 @@ namespace OneDayThermostat.Core
         private readonly ResidentRhythmSystem _residents = new ResidentRhythmSystem();
         private readonly EventDirector _events = new EventDirector();
         private readonly ServiceFollowUpSystem _service = new ServiceFollowUpSystem();
+        private readonly AchievementProgressionSystem _progression = new AchievementProgressionSystem();
         private readonly DiagnosticReasoning _diagnostics = new DiagnosticReasoning();
         private readonly AutomationEvaluator _automation = new AutomationEvaluator(new SafetyGovernor());
         private readonly FirmwareModifierCatalog _configuration = new FirmwareModifierCatalog();
@@ -65,6 +67,7 @@ namespace OneDayThermostat.Core
             _service.Step(world, TickSeconds);
             EvaluateAndQueuePolicy(world);
             CommitCommands(world);
+            _progression.Step(world, TickSeconds);
             _diagnostics.Update(world, _configuration);
             world.Tick++;
             world.DayProgress = (world.DayProgress + .0025f) % 1f;

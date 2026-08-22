@@ -81,6 +81,14 @@
     { "key": "policy.status.valid", "value": "можно закрепить" },
     { "key": "policy.status.blocked", "value": "Governor остановил" },
     { "key": "policy.status.superseded", "value": "условие уже завершено" },
-    { "key": "policy.status.suggested", "value": "ожидает контекста" }
+    { "key": "policy.status.suggested", "value": "ожидает контекста" },
+    { "key": "achievement.threshold_route.title", "value": "Первый маршрут" },
+    { "key": "achievement.threshold_route.description", "value": "Оставлен читаемый след решения у порога." },
+    { "key": "achievement.quiet_route.title", "value": "Тихое окно" },
+    { "key": "achievement.quiet_route.description", "value": "Маршрут сохранил ритм комнаты." },
+    { "key": "achievement.day_gathered.title", "value": "Собранный день" },
+    { "key": "achievement.day_gathered.description", "value": "Дом дошёл до восстанавливаемого baseline без открытого сервиса." },
+    { "key": "achievement.branch_rebalanced.title", "value": "Ветвь собрана" },
+    { "key": "achievement.branch_rebalanced.description", "value": "Материальный след ветви 26 получил окно восстановления." }
   ]
 }

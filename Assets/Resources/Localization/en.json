@@ -81,6 +81,14 @@
     { "key": "policy.status.valid", "value": "ready to commit" },
     { "key": "policy.status.blocked", "value": "the Governor stopped it" },
     { "key": "policy.status.superseded", "value": "the condition already ended" },
-    { "key": "policy.status.suggested", "value": "waiting for context" }
+    { "key": "policy.status.suggested", "value": "waiting for context" },
+    { "key": "achievement.threshold_route.title", "value": "First Route" },
+    { "key": "achievement.threshold_route.description", "value": "A readable decision trace was left at the threshold." },
+    { "key": "achievement.quiet_route.title", "value": "Quiet Window" },
+    { "key": "achievement.quiet_route.description", "value": "The route preserved the room rhythm." },
+    { "key": "achievement.day_gathered.title", "value": "Gathered Day" },
+    { "key": "achievement.day_gathered.description", "value": "The house reached a recoverable baseline with no open service." },
+    { "key": "achievement.branch_rebalanced.title", "value": "Branch Gathered" },
+    { "key": "achievement.branch_rebalanced.description", "value": "The material trace of branch 26 received a recovery window." }
   ]
 }

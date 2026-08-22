@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using OneDayThermostat.Core;
 using OneDayThermostat.Presentation.Runtime;
 using UnityEngine;
@@ -12,8 +13,8 @@ namespace OneDayThermostat.Platform
         private UnitySimulationDriver _driver;
         private GamePlatformBootstrap _platformBootstrap;
         private EventPhase _lastPhase;
-        private bool _firstFlowSynced;
-        private bool _quietRouteSynced;
+        private int _lastLocalAchievementCount;
+        private readonly HashSet<string> _dispatchedAchievementsThisSession = new HashSet<string>();
 
         private void Awake()
         {
@@ -48,18 +49,23 @@ namespace OneDayThermostat.Platform
                 _platformBootstrap.Platform.Track("component_stage_changed", snapshot.Event.Phase.ToString());
             }
 
-            if (!_firstFlowSynced && snapshot.Archive.UnlockedEntries.Contains("archive.threshold_route"))
+            if (snapshot.Archive.UnlockedAchievements.Count != _lastLocalAchievementCount)
             {
-                _firstFlowSynced = true;
-                _platformBootstrap.Platform.UnlockAchievement("archive_first_flow");
-                _platformBootstrap.Platform.Track("route_committed", "threshold_route");
+                _lastLocalAchievementCount = snapshot.Archive.UnlockedAchievements.Count;
+                _driver.Save(); // achievement state is durable before GamePush dispatch
+                RetrySync();
             }
+            FlushPendingAchievements(snapshot);
+        }
 
-            if (!_quietRouteSynced && snapshot.Archive.UnlockedEntries.Contains("archive.quiet_route"))
+        private void FlushPendingAchievements(SimulationSnapshot snapshot)
+        {
+            if (_platformBootstrap == null || _platformBootstrap.Platform == null || _platformBootstrap.Platform.Readiness != PlatformReadiness.Ready) return;
+            foreach (var achievementId in snapshot.Archive.PendingPlatformAchievements)
             {
-                _quietRouteSynced = true;
-                _platformBootstrap.Platform.UnlockAchievement("archive_quiet_route");
-                _platformBootstrap.Platform.Track("resident_adaptation_available", "quiet_route_context");
+                if (!_dispatchedAchievementsThisSession.Add(achievementId)) continue;
+                _platformBootstrap.Platform.UnlockAchievement(achievementId);
+                _platformBootstrap.Platform.Track("achievement_dispatched", achievementId);
             }
         }
     }
