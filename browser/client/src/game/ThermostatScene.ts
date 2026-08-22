@@ -4,11 +4,12 @@ import { ThermostatSimulation } from "./ThermostatSimulation";
 import { isSceneData, type SceneData } from "./SceneData";
 import type { GameState } from "./types";
 
-const HERO = "/manus-storage/thermostat-cutaway-hero_e2876f3d.png";
+const HERO = "/manus-storage/thermostat-cutaway-hero-1600_7b2b462c.webp";
 
 export class ThermostatScene extends Phaser.Scene {
   private simulation!: ThermostatSimulation;
   private onState!: (state: GameState) => void;
+  private onSceneReady!: () => void;
   private reducedMotion = false;
   private backdrop?: Phaser.GameObjects.Image;
   private ink?: Phaser.GameObjects.Graphics;
@@ -24,6 +25,7 @@ export class ThermostatScene extends Phaser.Scene {
     }
     this.simulation = data.simulation;
     this.onState = data.onState;
+    this.onSceneReady = data.onSceneReady;
     this.reducedMotion = data.reducedMotion;
   }
 
@@ -38,6 +40,7 @@ export class ThermostatScene extends Phaser.Scene {
     this.scale.on("resize", this.layout, this);
     this.layout();
     this.draw(this.simulation.snapshot(), true);
+    this.onSceneReady();
   }
 
   update(_time: number, delta: number) {

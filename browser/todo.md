@@ -34,6 +34,16 @@
 - [x] Document the exact test-project inputs needed before real SDK dispatch can be enabled.
 - [x] Run performance build analysis, browser tests, Browser/Core CI and checkpoint the optimized version.
 
+## Lazy engine progress, mobile loading and GamePush test project
+
+- [x] Inspect the current lazy Phaser mount lifecycle and define loading/readiness states.
+- [x] Add a visible labelled progress indicator that works with reduced motion and keyboard flow.
+- [x] Verify mobile onboarding, route choices, configuration/service sheets and touch target size.
+- [x] Measure mobile initial/after-start network payloads and record findings.
+- [x] Confirm that project-specific GamePush parameters are absent and preserve the inert local-first adapter.
+- [ ] Connect the verified GamePush test client after Project ID, allowed origin, browser bootstrap and achievement IDs are supplied through a safe channel.
+- [ ] Run tests, Browser/Core CI and checkpoint the mobile-ready version.
+
 ## Local-first achievements browser port
 
 - [x] Compare legacy achievement triggers, Archive contract and pending platform tag semantics.
