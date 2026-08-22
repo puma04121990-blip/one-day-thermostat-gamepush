@@ -1,5 +1,6 @@
 using System;
 using OneDayThermostat.Content;
+using OneDayThermostat.Content.Localization;
 using OneDayThermostat.Core;
 using OneDayThermostat.Gameplay.Automation;
 
@@ -17,6 +18,7 @@ namespace OneDayThermostat.Tests
                 CampaignProgressionReachesStagedReturnBaseline();
                 FirmwareModifiersAreWhitelistedAndPreviewedBeforeCommit();
                 ServiceFollowUpsAreRecoverableAndPersisted();
+                LocalizationCatalogProvidesFallbackAndRejectsDuplicateKeys();
                 CanonicalScenarioCatalogMeetsFairnessContract();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
@@ -108,6 +110,37 @@ namespace OneDayThermostat.Tests
             Assert(world.Archive.UnlockedEntries.Contains("archive.day_complete"), "complete day should create a reflective archive entry");
             Assert(world.Archive.EndOfDayReviewAvailable, "recoverable day completion should offer an end-of-day review");
             Assert(world.Archive.EndOfDayReviewKey == "review.day.stewardship_complete", "careful completion should communicate stewardship baseline");
+        }
+
+        private static void LocalizationCatalogProvidesFallbackAndRejectsDuplicateKeys()
+        {
+            var primary = new LocalizationDocument
+            {
+                locale = "ru-RU",
+                entries = new[] { new LocalizationEntry { key = "key.primary", value = "Первичный" } }
+            };
+            var fallback = new LocalizationDocument
+            {
+                locale = "en-US",
+                entries = new[] { new LocalizationEntry { key = "key.fallback", value = "Fallback" } }
+            };
+            var catalog = LocalizationCatalog.Create(primary, fallback, out var validation);
+            Assert(validation.IsValid, "well-formed localization documents should validate");
+            Assert(catalog.Resolve("key.primary") == "Первичный", "primary locale should take precedence");
+            Assert(catalog.Resolve("key.fallback") == "Fallback", "fallback locale should resolve missing primary keys");
+            Assert(catalog.Resolve("key.missing") == "[[key.missing]]", "missing semantic key should stay visible rather than silently disappear");
+
+            var duplicate = new LocalizationDocument
+            {
+                locale = "ru-RU",
+                entries = new[]
+                {
+                    new LocalizationEntry { key = "key.duplicate", value = "one" },
+                    new LocalizationEntry { key = "key.duplicate", value = "two" }
+                }
+            };
+            LocalizationCatalog.Create(duplicate, fallback, out var duplicateValidation);
+            Assert(!duplicateValidation.IsValid, "duplicate semantic keys must be rejected during content validation");
         }
 
         private static void ServiceFollowUpsAreRecoverableAndPersisted()

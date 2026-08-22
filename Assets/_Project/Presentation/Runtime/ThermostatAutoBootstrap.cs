@@ -15,6 +15,7 @@ namespace OneDayThermostat.Presentation.Runtime
             root.AddComponent<UnitySimulationDriver>();
             root.AddComponent<GamePlatformBootstrap>();
             root.AddComponent<ProgressSyncController>();
+            root.AddComponent<LocalizationProvider>();
             root.AddComponent<ThermostatShowcaseUI>();
         }
     }
