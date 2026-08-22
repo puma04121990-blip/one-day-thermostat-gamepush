@@ -1,12 +1,14 @@
 // Design: Тихая технография — лента наблюдений слева, материальный cutaway справа, честные маршруты у нижнего края.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
+import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, ScanSearch, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
 import { achievementDefinition } from "@/game/AchievementCatalog";
 import { EngineLoadingProgress } from "@/components/EngineLoadingProgress";
 import { entriesFor } from "@/game/ConfigurationCatalog";
+import { POLICY_CATALOG } from "@/game/PolicyCatalog";
+import { SENSOR_LAYERS } from "@/game/ScenarioCatalog";
 import { serviceTraceKey } from "@/game/ServiceCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
-import type { ConfigurationChannel, ConfigurationPreview, GameState, RouteKind } from "@/game/types";
+import type { ConfigurationChannel, ConfigurationPreview, GameState, PolicyPreview, RouteKind, SensorLayer } from "@/game/types";
 
 const LOGO = "/manus-storage/thermostat-route-mark_4292ba1f.png";
 const JOURNAL = "/manus-storage/thermostat-journal-backdrop_cb648cce.png";
@@ -45,7 +47,9 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [configurationOpen, setConfigurationOpen] = useState(false);
   const [configurationPreview, setConfigurationPreview] = useState<ConfigurationPreview | null>(null);
+  const [policyPreview, setPolicyPreview] = useState<PolicyPreview | null>(null);
   const [serviceOpen, setServiceOpen] = useState(false);
+  const [sensorOpen, setSensorOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("idle");
 
@@ -68,7 +72,8 @@ export default function Home() {
       if (event.key.toLowerCase() === "l") setProfile((value) => ({ ...value, lowSensory: !value.lowSensory }));
       if (event.key.toLowerCase() === "c") setConfigurationOpen((value) => !value);
       if (event.key.toLowerCase() === "v") setServiceOpen((value) => !value);
-      if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setConfigurationOpen(false); setServiceOpen(false); setHelpOpen(false); }
+      if (event.key.toLowerCase() === "s") setSensorOpen((value) => !value);
+      if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setConfigurationOpen(false); setServiceOpen(false); setSensorOpen(false); setHelpOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -82,6 +87,9 @@ export default function Home() {
     if (!configurationPreview) return;
     if (simulation.queueConfiguration(configurationPreview)) refresh();
   };
+  const selectSensor = (layer: SensorLayer) => { if (simulation.selectSensor(layer)) refresh(); };
+  const inspectPolicy = (id: string) => setPolicyPreview(simulation.previewPolicy(id));
+  const commitPolicy = () => { if (policyPreview && simulation.queuePolicy(policyPreview)) refresh(); };
   const recoverService = (taskId: string) => { if (simulation.queueServiceRecovery(taskId)) refresh(); };
   const openServiceTasks = state.service.tasks.filter((task) => !task.resolved);
 
@@ -112,7 +120,7 @@ export default function Home() {
           <p className="eyebrow">ЦЕПОЧКА {state.chainIndex + 1} / 3</p>
           <h1>{state.chainTitle}</h1>
           <p className="trace-copy">{state.trace}</p>
-          <div className="caption-card"><AudioLines size={17} /><p>{state.caption}</p></div>
+          <button className="caption-card diagnostic-trigger" onClick={() => setSensorOpen(true)} aria-label="Открыть сенсоры и диагностику"><AudioLines size={17} /><p>{state.caption}</p><ScanSearch size={15} /></button>
           <div className="sensor-stack" aria-label="Материальные датчики">
             {meters.map((meter) => {
               const value = Math.round(state.metrics[meter.key] * 100);
@@ -151,6 +159,8 @@ export default function Home() {
       {journalOpen && <aside className="journal-sheet" role="dialog" aria-modal="true" aria-label="Archive журнала" style={{ backgroundImage: `linear-gradient(90deg, rgba(9,18,29,.96), rgba(9,18,29,.76)), url(${JOURNAL})` }}>
         <div className="sheet-top"><div><p className="eyebrow">ARCHIVE / LOCAL</p><h2>Журнал дома</h2></div><button className="icon-button" onClick={() => setJournalOpen(false)} aria-label="Закрыть журнал"><X size={19} /></button></div>
         <p className="journal-intro">Каждая запись описывает материальный след и последствия маршрута. Она не является оценкой жильца.</p>
+        <section className="boundary-card" aria-label="Контекст и границы текущей сцены"><p className="eyebrow">КОНТЕКСТ СЦЕНЫ</p><b>{state.boundaries[0]?.materialSignature}</b><p>{state.boundaries[0]?.context}</p><small>Возможная adaptation: {state.boundaries[0]?.adaptation}</small><small>Player scope: {state.boundaries[0]?.playerScope}</small><em>{state.boundaries[0]?.never}</em></section>
+        {state.policy.log.length > 0 && <section className="policy-ledger" aria-label="Журнал policy"><p className="eyebrow">POLICY LOG</p>{[...state.policy.log].reverse().map((entry, index) => <p key={`${entry.tick}-${entry.id}-${index}`}><b>{entry.title}</b> · {entry.state} · Т.{String(entry.tick).padStart(3, "0")}</p>)}</section>}
         <section className="achievement-ledger" aria-label="Локальные достижения"><div className="achievement-ledger-head"><Trophy size={18} /><span><p className="eyebrow">LOCAL ACHIEVEMENTS</p><b>Следы, а не power-up</b></span></div>{state.achievements.unlocked.length ? <div className="achievement-list">{state.achievements.unlocked.map((entry) => { const definition = achievementDefinition(entry.id); return <article key={entry.id}><span>◇</span><div><b>{definition?.title ?? entry.id}</b><p>{definition?.description ?? "Локальный trace сохранён."}</p><small>Т.{String(entry.unlockedTick).padStart(3, "0")}</small></div></article>; })}</div> : <p className="empty-note">Первые локальные следы появятся после авторитетных событий дня.</p>}{state.achievements.pendingPlatformTags.length > 0 && <p className="achievement-pending">PENDING MIRROR: {state.achievements.pendingPlatformTags.length}. Теги остаются local-first до подключения реального GamePush browser SDK.</p>}</section>
         <div className="journal-list">{state.archive.length ? [...state.archive].reverse().map((entry, index) => <article key={`${entry.tick}-${index}`} className={`journal-entry ${entry.tone}`}><span>Т.{String(entry.tick).padStart(3, "0")}</span><div><b>{entry.title}</b><p>{entry.body}</p></div></article>) : <p className="empty-note">Начни наблюдение — первые следы появятся здесь.</p>}</div>
         {state.unresolved.length > 0 && <div className="service-note"><b>ВИДИМЫЕ SERVICE TRACE</b>{state.unresolved.map((item, index) => <p key={serviceTraceKey(item, index)}>— {item}</p>)}</div>}
@@ -162,10 +172,13 @@ export default function Home() {
         <div className="text-scale"><div><Type size={18} /><span><b>Размер текста</b><small>90–125% · сохраняется локально</small></span></div><input aria-label="Размер текста" type="range" min="0.9" max="1.25" step="0.05" value={profile.textScale} onChange={(event) => setProfile((value) => ({ ...value, textScale: Number(event.target.value) }))} /><b>{Math.round(profile.textScale * 100)}%</b></div>
       </aside>}
 
+      {sensorOpen && <aside className="sensor-sheet" role="dialog" aria-modal="true" aria-label="Сенсоры и диагностика"><div className="sheet-top"><div><p className="eyebrow">L1 SENSOR → L2 DIAGNOSTIC</p><h2>Читать<br />следы</h2></div><button className="icon-button" onClick={() => setSensorOpen(false)} aria-label="Закрыть сенсоры"><X size={19} /></button></div><p className="sensor-intro">Один слой отвечает на один вопрос. Цвет, узор, подпись и canonical copy описывают тот же сигнал.</p><div className="sensor-picker">{SENSOR_LAYERS.map((layer) => <button key={layer.id} className={state.sensorLayer === layer.id ? "active" : ""} aria-pressed={state.sensorLayer === layer.id} onClick={() => selectSensor(layer.id)}><span>{layer.pattern}</span><b>{layer.label}</b><small>{layer.description}</small></button>)}</div><section className={`diagnostic-card status-${state.diagnostic.status}`} aria-live="polite"><p className="eyebrow">{state.diagnostic.status.toUpperCase()} · {state.diagnostic.layer.toUpperCase()}</p><h3>{state.diagnostic.source}</h3><p><b>Изменение:</b> {state.diagnostic.change}</p><p><b>Почему:</b> {state.diagnostic.causes.join(" · ")}</p><p><b>Прогноз:</b> {state.diagnostic.forecast}</p><small>{state.diagnostic.caption}</small></section></aside>}
+
       {configurationOpen && <aside className="configuration-sheet" role="dialog" aria-modal="true" aria-label="Firmware и modifiers"><div className="sheet-top"><div><p className="eyebrow">БЕЗОПАСНАЯ КОНФИГУРАЦИЯ</p><h2>Контуры<br />наблюдения</h2></div><button className="icon-button" onClick={() => setConfigurationOpen(false)} aria-label="Закрыть конфигурацию"><X size={19} /></button></div>
         <p className="configuration-intro">Сначала посмотри пользу и цену. Выбор попадёт в очередь и применится только на следующем тике; он не меняет людей или скрытые причины.</p>
         {configurationSections.map((section) => <section className="configuration-section" key={section.channel}><div className="configuration-section-head"><b>{section.label}</b><small>{section.note}</small></div><div className="configuration-options">{entriesFor(section.channel).map((entry) => <button key={entry.id} className={`configuration-choice ${configurationPreview?.selectionId === entry.id ? "inspected" : ""}`} onClick={() => inspectConfiguration(entry.id, section.channel)} aria-pressed={configurationPreview?.selectionId === entry.id}><span className="configuration-node">◆</span><span><b>{entry.title}</b><small>{entry.effect}</small><em>цена: {entry.tradeoff}</em></span></button>)}</div></section>)}
         <section className={`configuration-preview ${configurationPreview?.status ?? "empty"}`} aria-live="polite">{configurationPreview ? <><p className="eyebrow">{configurationPreview.status === "valid" ? "PREVIEW · НЕ МЕНЯЕТ ДЕНЬ" : configurationPreview.status === "selected" ? "УЖЕ АКТИВНО" : "ЗАБЛОКИРОВАНО"}</p><b>{configurationPreview.title}</b><p>{configurationPreview.effect}</p><p className="configuration-cost">Цена: {configurationPreview.tradeoff}</p>{configurationPreview.alternative && <p className="configuration-alternative">{configurationPreview.alternative}</p>}{configurationPreview.status === "valid" && <button className="primary-cta" onClick={commitConfiguration}>ПРИМЕНИТЬ НА СЛЕДУЮЩЕМ ТИКЕ</button>}</> : <p>Выбери элемент каталога — preview покажет результат до любого commit.</p>}</section>
+        <section className="policy-lab" aria-label="Безопасные policy rules"><div className="configuration-section-head"><span><ShieldCheck size={16} /> POLICY / GOVERNOR</span><small>Rule объясняет trigger, safety context, одно действие, цену и stop condition.</small></div><div className="policy-options">{POLICY_CATALOG.map((policy) => <button key={policy.id} className={policyPreview?.policyId === policy.id ? "inspected" : ""} onClick={() => inspectPolicy(policy.id)}><b>{policy.title}</b><small>WHEN: {policy.when}</small><em>UNTIL: {policy.until}</em></button>)}</div>{policyPreview && <div className={`policy-preview ${policyPreview.status}`}><p className="eyebrow">{policyPreview.status === "valid" ? "PREVIEW · GOVERNOR ПРОВЕРЕН" : policyPreview.status === "selected" ? "УЖЕ В КОНТЕКСТЕ" : "GOVERNOR BLOCK"}</p><b>{policyPreview.title}</b><p>IF: {policyPreview.if}</p><p>THEN: {policyPreview.then}</p><p>UNTIL: {policyPreview.until}</p><p className="configuration-cost">Цена: {policyPreview.price}</p>{policyPreview.reason && <p className="configuration-alternative">{policyPreview.reason}</p>}{policyPreview.alternative && <p className="configuration-alternative">{policyPreview.alternative}</p>}{policyPreview.status === "valid" && <button className="primary-cta" onClick={commitPolicy}>ПОСТАВИТЬ RULE НА СЛЕДУЮЩИЙ ТИК</button>}</div>}</section>
         {state.configuration.pending && <p className="configuration-pending">В очереди: {state.configuration.pending.title} · применится на тике {String(state.configuration.pending.staleAtTick).padStart(3, "0")}.</p>}
       </aside>}
 

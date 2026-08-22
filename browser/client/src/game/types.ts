@@ -1,6 +1,8 @@
 export type EventPhase = "prologue" | "warning" | "active" | "aftermath" | "complete";
 
 export type RouteKind = "careful" | "direct";
+export type SensorLayer = "heat" | "air" | "vibration" | "moisture" | "network" | "surface" | "memory";
+export type DiagnosticStatus = "stable" | "elevated" | "strained" | "warning" | "protective";
 
 export type ConfigurationChannel = "firmware" | "sensor" | "route";
 export type ConfigurationStatus = "valid" | "blocked" | "selected";
@@ -24,12 +26,21 @@ export interface ServiceTask {
 export interface EndOfDayReview { available: boolean; key?: "review.day.stewardship_complete" | "review.day.service_follow_up_open"; text?: string; }
 export interface ServiceState { tasks: ServiceTask[]; unresolvedReasons: string[]; pendingTaskId?: string; credits: number; review: EndOfDayReview; }
 
-export interface AchievementDefinition { id: string; title: string; description: string; trigger: "archive" | "review" | "service"; triggerKey: string; }
+export interface AchievementDefinition { id: string; title: string; description: string; trigger: "archive" | "review" | "service" | "policy"; triggerKey: string; }
 export interface UnlockedAchievement { id: string; unlockedTick: number; }
 export interface AchievementState { unlocked: UnlockedAchievement[]; pendingPlatformTags: string[]; }
 
 export interface RouteOption { id: RouteKind; title: string; label: string; benefit: string; cost: string; keyHint: string; }
-export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service" | "achievement"; }
+export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service" | "achievement" | "policy"; }
+export interface SensorReading { source: string; change: string; causes: string[]; forecast: string; caption: string; }
+export interface DiagnosticState { layer: SensorLayer; source: string; change: string; causes: string[]; forecast: string; status: DiagnosticStatus; caption: string; }
+export interface ResidentBoundaryCard { id: string; materialSignature: string; context: string; adaptation: string; playerScope: string; never: string; }
+export interface ScenarioDefinition { id: string; title: string; trace: string; caption: string; archive: string; careful: RouteOption; direct: RouteOption; carefulResult: string; directResult: string; foreshadows: string[]; cooldownFamily: string; boundary: ResidentBoundaryCard; readings: Record<SensorLayer, SensorReading>; }
+export interface ScenarioState { id: string; foreshadows: string[]; cooldownFamily: string; }
+export interface PolicyDefinition { id: string; title: string; when: string; if: string; then: string; until: string; price: string; scenarioId: string; }
+export interface PolicyPreview { status: "valid" | "blocked" | "selected"; policyId: string; title: string; when: string; if: string; then: string; until: string; price: string; reason?: string; alternative?: string; staleAtTick: number; }
+export interface ActivePolicy { id: string; startedTick: number; untilTick: number; }
+export interface PolicyState { active: ActivePolicy[]; pending?: PolicyPreview; log: Array<{ tick: number; id: string; title: string; state: "active" | "ended" | "blocked" }>; }
 
 export interface GameState {
   schemaVersion: number;
@@ -47,6 +58,11 @@ export interface GameState {
   configuration: ConfigurationState;
   service: ServiceState;
   achievements: AchievementState;
-  metrics: { air: number; moisture: number; surface: number; branch: number; };
+  metrics: { air: number; moisture: number; surface: number; branch: number; network: number; wear: number; rhythm: number; reserve: number; };
+  sensorLayer: SensorLayer;
+  diagnostic: DiagnosticState;
+  scenario: ScenarioState;
+  boundaries: ResidentBoundaryCard[];
+  policy: PolicyState;
   dayComplete: boolean;
 }

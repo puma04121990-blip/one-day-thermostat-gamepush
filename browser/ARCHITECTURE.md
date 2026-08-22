@@ -5,12 +5,14 @@ React controls ──route intent──> ThermostatSimulation ──snapshot─�
                                       │
                                       ├── fixed tick 200 ms
                                       ├── localStorage day save
+                                      ├── sensor/diagnostic/scenario/boundary catalogs
+                                      ├── policy Governor preview + next-tick commit
                                       └── GamePush mirror later
                                       │
                                       └── snapshot ──> Phaser ThermostatScene
 ```
 
-`ThermostatSimulation` не импортирует Phaser или React. Phaser визуализирует snapshot, а HTML controls создают только constrained `careful`/`direct` route intents. Поэтому renderer, animation, UI и будущий platform SDK не могут тайно изменить ход дня.
+`ThermostatSimulation` не импортирует Phaser или React. Phaser визуализирует snapshot, а HTML controls создают только constrained `careful`/`direct` route intents, sensor selection и previewed policy commands. Поэтому renderer, animation, UI и будущий platform SDK не могут тайно изменить ход дня. Policy проходит `WHEN → IF → THEN → UNTIL + цена`, а Governor проверяет current authored scenario непосредственно перед next-tick commit.
 
 Каждый tick длится `200 ms`; входящий browser frame delta capped at `250 ms`. Обычный fixed step не теряется, а после скрытия вкладки всё ещё не происходит крупного catch-up шага. Preferences изменяют лишь presentation и хранятся отдельно от состояния дня.
 

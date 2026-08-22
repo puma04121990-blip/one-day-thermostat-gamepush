@@ -1,0 +1,122 @@
+{
+  "project_info": {
+    "title": "Один день термостата",
+    "created": 1787401039.529,
+    "last_updated": 1787401147.402,
+    "total_slides": 10
+  },
+  "slides": [
+    {
+      "id": "title",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "promise",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "loop",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "sensors",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "scenarios",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "verbs",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "policy",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "technical",
+      "state": "edited",
+      "pageNum": 8
+    },
+    {
+      "id": "horizon",
+      "state": "edited",
+      "pageNum": 9
+    },
+    {
+      "id": "close",
+      "state": "edited",
+      "pageNum": 10
+    }
+  ],
+  "outline": [
+    {
+      "id": "title",
+      "title": "Один день термостата",
+      "summary": "Browser-first playable vertical slice: narrative system puzzle about care that cannot be seen.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "promise",
+      "title": "Обещание игроку",
+      "summary": "Physics, context and care: the player changes material conditions rather than people.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "loop",
+      "title": "Один диагностический ритм",
+      "summary": "Anomaly, two independent foreshadows, route with a visible price and delayed observation.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "sensors",
+      "title": "Семь слоёв тепловой эхолокации",
+      "summary": "Seven semantic sensor layers and accessible diagnostic copy available in the browser build.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "scenarios",
+      "title": "Три authored browser scenarios",
+      "summary": "Arcady threshold, Kitchen without Fire and Quiet Cycle with material problem and boundary meaning.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "verbs",
+      "title": "Минимальные verbs, видимые последствия",
+      "summary": "Fixed-tick route choices, configuration previews and recoverable material follow-ups.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "policy",
+      "title": "Safe automation вместо чёрного ящика",
+      "summary": "WHEN–IF–THEN–UNTIL policy grammar and Governor preview/commit path.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "technical",
+      "title": "Local-first technical proof",
+      "summary": "React intent layer, TypeScript fixed-tick authority, Phaser presentation and versioned saves.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "horizon",
+      "title": "Production horizon, stated honestly",
+      "summary": "Clearly distinguish current playable slice from authored next work and production targets.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "close",
+      "title": "Почему этот scope управляем",
+      "summary": "One home, one system, one ethical contract, with traceable master materials in the repository.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

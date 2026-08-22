@@ -1,11 +1,13 @@
 // Design: authored content can change, but a local day must remain recoverable. Unknown IDs are removed or reset to canonical defaults; no update may create power or a hard fail.
 import { DEFAULT_CONFIGURATION, findConfiguration } from "./ConfigurationCatalog";
 import { isKnownAchievementId } from "./AchievementCatalog";
+import { isKnownPolicyId } from "./PolicyCatalog";
+import { diagnosticFor, scenarioAt, SENSOR_LAYERS } from "./ScenarioCatalog";
 import { isKnownServiceTaskId, serviceTemplateFor } from "./ServiceCatalog";
-import type { ConfigurationChannel, GameState } from "./types";
+import type { ConfigurationChannel, GameState, SensorLayer } from "./types";
 
-export const SAVE_SCHEMA_VERSION = 2;
-export const CONTENT_VERSION = "browser-content-2026.08";
+export const SAVE_SCHEMA_VERSION = 3;
+export const CONTENT_VERSION = "browser-content-2026.08-master.1";
 const CHANNELS: ConfigurationChannel[] = ["firmware", "sensor", "route"];
 const PHASES = ["prologue", "warning", "active", "aftermath", "complete"];
 
@@ -58,6 +60,27 @@ export function migrateSavedState(raw: unknown): MigrationResult | undefined {
   state.achievements = { unlocked, pendingPlatformTags: Array.isArray(achievements.pendingPlatformTags) ? achievements.pendingPlatformTags.filter((id) => typeof id === "string" && unlocked.some((entry) => entry.id === id)) : [] };
   state.chainIndex = Math.max(0, Math.min(2, Math.floor(state.chainIndex)));
   if (!PHASES.includes(state.phase)) { state.phase = "prologue"; notes.push("Неизвестная фаза content восстановлена как безопасное наблюдение."); }
+  const scenario = scenarioAt(state.chainIndex);
+  const sensorLayer = typeof saved.sensorLayer === "string" && SENSOR_LAYERS.some((entry) => entry.id === saved.sensorLayer)
+    ? saved.sensorLayer as SensorLayer
+    : "heat";
+  if (sensorLayer === "heat" && saved.sensorLayer !== undefined && saved.sensorLayer !== "heat") notes.push("Неизвестный sensor layer заменён на видимый слой тепла.");
+  const metrics = object(saved.metrics) ?? {};
+  const metric = (key: keyof GameState["metrics"], fallback: number) => typeof metrics[key] === "number" ? Math.max(0, Math.min(1, Number(metrics[key]))) : fallback;
+  state.metrics = {
+    air: metric("air", .34), moisture: metric("moisture", .3), surface: metric("surface", .48), branch: metric("branch", .36),
+    network: metric("network", .28), wear: metric("wear", .24), rhythm: metric("rhythm", .48), reserve: metric("reserve", .62)
+  };
+  state.sensorLayer = sensorLayer;
+  state.scenario = { id: scenario.id, foreshadows: [...scenario.foreshadows], cooldownFamily: scenario.cooldownFamily };
+  state.boundaries = [scenario.boundary];
+  state.diagnostic = diagnosticFor(scenario, sensorLayer);
+  const policy = object(saved.policy) ?? {};
+  const active = Array.isArray(policy.active)
+    ? policy.active.filter((entry) => object(entry) && typeof object(entry)?.id === "string" && isKnownPolicyId(String(object(entry)?.id)) && typeof object(entry)?.startedTick === "number" && typeof object(entry)?.untilTick === "number") as GameState["policy"]["active"]
+    : [];
+  if (Array.isArray(policy.active) && active.length !== policy.active.length) notes.push("Неизвестные или неполные policy rules не перенесены в активную очередь.");
+  state.policy = { active, log: Array.isArray(policy.log) ? policy.log.filter((entry) => object(entry) && typeof object(entry)?.id === "string" && isKnownPolicyId(String(object(entry)?.id))) as GameState["policy"]["log"] : [] };
   if (storedSchema < SAVE_SCHEMA_VERSION) notes.push(`Local save migrated from schema ${storedSchema}.`);
   if (saved.contentVersion !== CONTENT_VERSION) notes.push("Контент обновлён; local day сверено с текущим canonical catalog.");
   state.schemaVersion = SAVE_SCHEMA_VERSION;
