@@ -94,4 +94,55 @@ describe("ThermostatSimulation", () => {
     expect(simulation.queueConfiguration(preview)).toBe(false);
     expect(simulation.snapshot().configuration.firmwareId).toBe("firmware.surface_memory");
   });
+
+  it("materializes one material-only service task and applies bounded recovery once", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("direct");
+    advanceTicks(simulation, 1);
+    const offered = simulation.snapshot();
+    const task = offered.service.tasks[0];
+    expect(task.id).toBe("service.branch_26.resonance");
+    expect(task.componentId).toBe("component.branch_26");
+    expect(task.resolved).toBe(false);
+    const branchBefore = offered.metrics.branch;
+    expect(simulation.queueServiceRecovery(task.id)).toBe(true);
+    advanceTicks(simulation, 1);
+    const recovered = simulation.snapshot();
+    expect(recovered.service.tasks[0].resolved).toBe(true);
+    expect(recovered.service.credits).toBe(1);
+    expect(recovered.metrics.branch).toBeLessThan(branchBefore);
+    expect(simulation.queueServiceRecovery(task.id)).toBe(false);
+    const restored = new ThermostatSimulation();
+    expect(restored.snapshot().service.tasks[0].resolved).toBe(true);
+  });
+
+  it("offers a stewardship review after a careful complete day without an open service task", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    for (let chain = 0; chain < 3; chain += 1) {
+      advanceTicks(simulation, 7);
+      simulation.chooseRoute("careful");
+      advanceTicks(simulation, 14);
+    }
+    const complete = simulation.snapshot();
+    expect(complete.dayComplete).toBe(true);
+    expect(complete.service.tasks).toHaveLength(0);
+    expect(complete.service.review.key).toBe("review.day.stewardship_complete");
+  });
+
+  it("keeps an open material task visible in review after a direct complete day without hard failure", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    for (let chain = 0; chain < 3; chain += 1) {
+      advanceTicks(simulation, 7);
+      simulation.chooseRoute("direct");
+      advanceTicks(simulation, 14);
+    }
+    const complete = simulation.snapshot();
+    expect(complete.dayComplete).toBe(true);
+    expect(complete.service.tasks.filter((task) => !task.resolved)).toHaveLength(3);
+    expect(complete.service.review.key).toBe("review.day.service_follow_up_open");
+  });
 });

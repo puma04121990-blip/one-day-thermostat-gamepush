@@ -14,4 +14,13 @@
 - [x] Commit a valid selection only at the next fixed tick and persist it locally.
 - [x] Add a player-facing configuration sheet with labelled benefit, cost and keyboard fallback.
 - [x] Cover unknown IDs, preview non-mutation, stale rejection, tick commit and save restore in Vitest.
+- [x] Run browser/Core CI, merge through GitHub and checkpoint the playable browser version.
+
+## Service follow-up and end-of-day browser port
+
+- [x] Compare legacy material-only service task and end-of-day review contract against browser state.
+- [x] Add typed service task catalog, queued bounded recovery and persisted task status.
+- [x] Create recoverable Archive/end-of-day outcome independent of player success score.
+- [x] Add a labelled service review sheet with buttons and keyboard fallback.
+- [x] Cover task materialization, bounded recovery, save restore and day review in Vitest.
 - [ ] Run browser/Core CI, merge through GitHub and checkpoint the playable browser version.
