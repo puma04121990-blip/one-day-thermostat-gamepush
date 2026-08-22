@@ -1,11 +1,10 @@
 // Design: Тихая технография — Phaser рисует материальный дом; React overlay не может менять simulation напрямую.
 import Phaser from "phaser";
 import { ThermostatSimulation } from "./ThermostatSimulation";
+import { isSceneData, type SceneData } from "./SceneData";
 import type { GameState } from "./types";
 
 const HERO = "/manus-storage/thermostat-cutaway-hero_e2876f3d.png";
-
-export type SceneData = { simulation: ThermostatSimulation; onState: (state: GameState) => void; reducedMotion: boolean };
 
 export class ThermostatScene extends Phaser.Scene {
   private simulation!: ThermostatSimulation;
@@ -18,7 +17,11 @@ export class ThermostatScene extends Phaser.Scene {
 
   constructor() { super("thermostat"); }
 
-  init(data: SceneData) {
+  init(data?: SceneData) {
+    if (!isSceneData(data)) {
+      this.scene.stop();
+      return;
+    }
     this.simulation = data.simulation;
     this.onState = data.onState;
     this.reducedMotion = data.reducedMotion;
@@ -27,6 +30,7 @@ export class ThermostatScene extends Phaser.Scene {
   preload() { this.load.image("cutaway", HERO); }
 
   create() {
+    if (!this.simulation || !this.onState) return;
     this.cameras.main.setBackgroundColor("#101A29");
     this.backdrop = this.add.image(0, 0, "cutaway").setOrigin(0.5).setAlpha(0.55);
     this.ink = this.add.graphics();
@@ -37,6 +41,7 @@ export class ThermostatScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if (!this.simulation || !this.onState) return;
     this.simulation.advance(delta);
     const state = this.simulation.snapshot();
     if (state.tick !== this.lastTick) this.draw(state, false);

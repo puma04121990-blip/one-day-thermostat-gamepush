@@ -14,14 +14,17 @@ export function PhaserThermostat({ simulation, onState, reducedMotion }: Props) 
   useEffect(() => {
     if (!host.current || game.current) return;
     game.current = new Phaser.Game({
-      type: Phaser.AUTO,
+      type: Phaser.CANVAS,
       parent: host.current,
       transparent: true,
       scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
-      scene: [ThermostatScene],
+      scene: [],
       render: { antialias: true, pixelArt: false },
       callbacks: {
-        postBoot: (instance) => instance.scene.start("thermostat", { simulation, onState, reducedMotion })
+        postBoot: (instance) => {
+          instance.scene.add("thermostat", ThermostatScene, false);
+          instance.scene.start("thermostat", { simulation, onState, reducedMotion });
+        }
       }
     });
     return () => { game.current?.destroy(true); game.current = null; };
