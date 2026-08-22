@@ -24,6 +24,11 @@ namespace OneDayThermostat.Presentation.UI
         private Text _archive;
         private Button _routeA;
         private Button _routeB;
+        private GameObject _onboardingOverlay;
+        private Text _onboardingHeadline;
+        private Text _onboardingBody;
+        private Button _onboardingContinue;
+        private int _onboardingStep;
         private Image _sensorWash;
         private Toggle _reducedMotion;
         private Toggle _lowSensory;
@@ -111,7 +116,65 @@ namespace OneDayThermostat.Presentation.UI
             _lowSensory.onValueChanged.AddListener(_ => ApplyAccessibility());
 
             _archive = CreateText(canvasRoot.transform, "Archive", "АРХИВ: первый поток открыт", 14, new Color(.88f, .91f, .92f), TextAnchor.LowerRight, new Vector2(1300, 28), new Vector2(-28, 72));
+            BuildOnboarding(canvasRoot.transform);
             Render(_driver.CurrentSnapshot);
+        }
+
+        private void BuildOnboarding(Transform canvasRoot)
+        {
+            var overlay = CreateImage(canvasRoot, "OnboardingOverlay", new Color(.015f, .03f, .05f, .94f));
+            Stretch(overlay.rectTransform, 0, 0, 1, 1, 0, 0, 0, 0);
+            _onboardingOverlay = overlay.gameObject;
+            var card = CreatePanel(overlay.transform, "OnboardingCard", _slate);
+            Stretch(card, .5f, .5f, .5f, .5f, -470, -272, 470, 272);
+            CreateText(card, "Eyebrow", "ТЕРМОСТАТ Т‑3 · НАБЛЮДАТЕЛЬНАЯ СИСТЕМА", 15, _cyan, TextAnchor.UpperLeft, new Vector2(32, -32), new Vector2(-32, -58));
+            _onboardingHeadline = CreateText(card, "Headline", string.Empty, 31, _amber, TextAnchor.UpperLeft, new Vector2(32, -82), new Vector2(-32, -134));
+            _onboardingBody = CreateText(card, "Body", string.Empty, 19, new Color(.90f, .93f, .94f), TextAnchor.UpperLeft, new Vector2(32, -154), new Vector2(-32, -310));
+            _onboardingContinue = CreateButton(card, "Continue", "ПРОДОЛЖИТЬ", AdvanceOnboarding);
+            Stretch(_onboardingContinue.GetComponent<RectTransform>(), 0, 0, .62f, 0, 32, 34, -8, -22);
+            var skip = CreateButton(card, "Skip", "ПЕРЕЙТИ К ВИТРИНЕ", StartSessionFromOnboarding);
+            Stretch(skip.GetComponent<RectTransform>(), .62f, 0, 1, 0, 8, 34, -32, -22);
+            RenderOnboardingStep();
+        }
+
+        private void AdvanceOnboarding()
+        {
+            if (_onboardingStep < 2)
+            {
+                _onboardingStep++;
+                RenderOnboardingStep();
+                return;
+            }
+            StartSessionFromOnboarding();
+        }
+
+        private void RenderOnboardingStep()
+        {
+            if (_onboardingHeadline == null || _onboardingBody == null || _onboardingContinue == null) return;
+            if (_onboardingStep == 0)
+            {
+                _onboardingHeadline.text = "Дом показывает следы, а не людей.";
+                _onboardingBody.text = "Т‑3 наблюдает за воздухом, влагой, поверхностью и контурами. Он не ставит диагнозы жильцам и не управляет их действиями. Ваш выбор меняет только маршруты дома — и оставляет читаемую цену.";
+                SetRouteButtonLabel(_onboardingContinue, "ПРОДОЛЖИТЬ");
+            }
+            else if (_onboardingStep == 1)
+            {
+                _onboardingHeadline.text = "Ищите два независимых предвестника.";
+                _onboardingBody.text = "Каждый риск приходит не внезапно: датчики дают цвет, форму и подпись. Слой можно переключить слева; low-sensory и reduced motion не убирают смысл, только меняют подачу.";
+                SetRouteButtonLabel(_onboardingContinue, "ПОКАЗАТЬ ВЫБОР");
+            }
+            else
+            {
+                _onboardingHeadline.text = "Маршрут — это не правильный ответ.";
+                _onboardingBody.text = "Быстрый и бережный пути несут разные наблюдаемые последствия. После решения загляните в Journal: Т‑3 сохранит след, а дом продолжит день с новым baseline.";
+                SetRouteButtonLabel(_onboardingContinue, "НАЧАТЬ ДЕНЬ");
+            }
+        }
+
+        private void StartSessionFromOnboarding()
+        {
+            _driver.StartSession();
+            if (_onboardingOverlay != null) _onboardingOverlay.SetActive(false);
         }
 
         private void Render(SimulationSnapshot snapshot)
