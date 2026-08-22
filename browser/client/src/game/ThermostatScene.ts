@@ -80,7 +80,27 @@ export class ThermostatScene extends Phaser.Scene {
       const label = this.add.text(room.x + 12, room.y + 12, room.label, { fontFamily: "IBM Plex Mono", fontSize: "11px", color: room.active ? "#F4E6CA" : "#B8C7C7" });
       this.labelLayer?.add(label);
     });
-    const diagnosticLabel = this.add.text(width * 0.54, height * 0.12, `SENSOR / ${state.sensorLayer.toUpperCase()}  ·  ${state.diagnostic.status.toUpperCase()}`, { fontFamily: "IBM Plex Mono", fontSize: "10px", color: "#E6C27C", stroke: "#09121D", strokeThickness: 3 });
+    if (state.started && state.handsOn.step < 3) {
+      const handStep = state.handsOn.step;
+      const focus = handStep === 0
+        ? { x: width * .46, y: height * .26, w: width * .13, h: height * .12, label: "01 · КОСНИСЬ РАМЫ" }
+        : handStep === 1
+          ? { x: width * .50, y: height * .58, w: width * .22, h: height * .08, label: "02 · УДЕРЖИВАЙ СВЯЗЬ" }
+          : { x: width * .57, y: height * .55, w: width * .18, h: height * .16, label: "03 · КОСНИСЬ СТЕНЫ" };
+      g.fillStyle(0xc8834a, .13).fillRoundedRect(focus.x, focus.y, focus.w, focus.h, 5);
+      g.lineStyle(2, 0xe8bd72, .92).strokeRoundedRect(focus.x, focus.y, focus.w, focus.h, 5);
+      const prompt = this.add.text(focus.x + focus.w / 2, focus.y - 12, focus.label, { fontFamily: "IBM Plex Mono", fontSize: "10px", color: "#F2D395", stroke: "#09121D", strokeThickness: 3 });
+      prompt.setOrigin(.5);
+      this.labelLayer?.add(prompt);
+      if (handStep === 1) {
+        g.lineStyle(3, 0xc8834a, .86).lineBetween(width * .46, height * .34, width * .62, height * .57);
+        g.fillStyle(0xe8bd72, .92).fillCircle(width * .62, height * .57, 6);
+      }
+    }
+    const diagnosticCopy = state.started && state.handsOn.step < 3
+      ? `ТИХОЕ ОКНО · ${state.handsOn.step}/3`
+      : `SENSOR / ${state.sensorLayer.toUpperCase()}  ·  ${state.diagnostic.status.toUpperCase()}`;
+    const diagnosticLabel = this.add.text(width * 0.54, height * 0.12, diagnosticCopy, { fontFamily: "IBM Plex Mono", fontSize: "10px", color: "#E6C27C", stroke: "#09121D", strokeThickness: 3 });
     diagnosticLabel.setOrigin(.5);
     this.labelLayer?.add(diagnosticLabel);
     const routeColor = state.phase === "warning" ? 0xc8834a : 0xe5b76d;

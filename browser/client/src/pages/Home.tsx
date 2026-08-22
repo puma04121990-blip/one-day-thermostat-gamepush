@@ -1,5 +1,5 @@
 // Design: Тихая технография — лента наблюдений слева, материальный cutaway справа, честные маршруты у нижнего края.
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, ScanSearch, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
 import { achievementDefinition } from "@/game/AchievementCatalog";
 import { BLACKOUT_ACTIONS, RESERVE_FOCUS_SENSORS } from "@/game/BlackoutCatalog";
@@ -9,7 +9,7 @@ import { POLICY_CATALOG } from "@/game/PolicyCatalog";
 import { SENSOR_LAYERS } from "@/game/ScenarioCatalog";
 import { serviceTraceKey } from "@/game/ServiceCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
-import type { ConfigurationChannel, ConfigurationPreview, FeedbackTopic, GameState, PolicyPreview, ReserveActionId, ReserveFocusSensor, RouteKind, SensorLayer } from "@/game/types";
+import type { ConfigurationChannel, ConfigurationPreview, FeedbackTopic, GameState, HandsOnAction, PolicyPreview, ReserveActionId, ReserveFocusSensor, RouteKind, SensorLayer } from "@/game/types";
 
 const LOGO = "/manus-storage/thermostat-route-mark_4292ba1f.png";
 const JOURNAL = "/manus-storage/thermostat-journal-backdrop_cb648cce.png";
@@ -42,9 +42,11 @@ const configurationSections: Array<{ channel: ConfigurationChannel; label: strin
 
 export default function Home() {
   const simulation = useMemo(() => {
-    const blackoutDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "blackout";
-    const instance = new ThermostatSimulation(blackoutDemo ? { restore: false } : undefined);
-    if (blackoutDemo) instance.prepareBlackoutDemo();
+    const demo = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("demo") : null;
+    const instance = new ThermostatSimulation(demo ? { restore: false } : undefined);
+    if (demo === "blackout") instance.prepareBlackoutDemo();
+    if (demo === "hands") instance.start();
+    if (demo === "hands3") { instance.start(); instance.performHandsOn("touch_frame"); instance.performHandsOn("hold_route"); instance.performHandsOn("touch_wall"); }
     return instance;
   }, []);
   const [state, setState] = useState<GameState>(() => simulation.snapshot());
@@ -60,6 +62,8 @@ export default function Home() {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>(() => simulation.snapshot().started ? "loading" : "idle");
   const [reserveFocus, setReserveFocus] = useState<ReserveFocusSensor>("surface");
   const [replayStatus, setReplayStatus] = useState<"idle" | "verified" | "mismatch">("idle");
+  const [holdingRoute, setHoldingRoute] = useState(false);
+  const holdTimer = useRef<number | undefined>(undefined);
 
   const receiveState = useCallback((next: GameState) => setState(next), []);
   const refresh = useCallback(() => setState(simulation.snapshot()), [simulation]);
@@ -74,21 +78,32 @@ export default function Home() {
     const onKey = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "q") { simulation.chooseRoute("careful"); refresh(); }
       if (event.key.toLowerCase() === "e") { simulation.chooseRoute("direct"); refresh(); }
-      if (event.key.toLowerCase() === "j") setJournalOpen((value) => !value);
+      if (event.key.toLowerCase() === "j" && state.handsOn.step === 3) setJournalOpen((value) => !value);
       if (event.key.toLowerCase() === "a") setJournalOpen(true);
       if (event.key.toLowerCase() === "m") setProfile((value) => ({ ...value, reducedMotion: !value.reducedMotion }));
       if (event.key.toLowerCase() === "l") setProfile((value) => ({ ...value, lowSensory: !value.lowSensory }));
-      if (event.key.toLowerCase() === "c") setConfigurationOpen((value) => !value);
-      if (event.key.toLowerCase() === "v") setServiceOpen((value) => !value);
-      if (event.key.toLowerCase() === "s") setSensorOpen((value) => !value);
+      if (event.key.toLowerCase() === "c" && state.handsOn.step === 3) setConfigurationOpen((value) => !value);
+      if (event.key.toLowerCase() === "v" && state.handsOn.step === 3) setServiceOpen((value) => !value);
+      if (event.key.toLowerCase() === "s" && state.handsOn.step === 3) setSensorOpen((value) => !value);
       if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setConfigurationOpen(false); setServiceOpen(false); setSensorOpen(false); setHelpOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [refresh, simulation]);
+  }, [refresh, simulation, state.handsOn.step]);
 
   const begin = () => { setEngineStatus("loading"); simulation.start(); refresh(); };
   const choose = (route: RouteKind) => { simulation.chooseRoute(route); refresh(); };
+  const performHandsOn = (action: HandsOnAction) => { if (simulation.performHandsOn(action)) refresh(); };
+  const beginHoldRoute = () => {
+    if (state.handsOn.step !== 1 || holdTimer.current !== undefined) return;
+    setHoldingRoute(true);
+    holdTimer.current = window.setTimeout(() => { performHandsOn("hold_route"); setHoldingRoute(false); holdTimer.current = undefined; }, 600);
+  };
+  const cancelHoldRoute = () => {
+    if (holdTimer.current !== undefined) window.clearTimeout(holdTimer.current);
+    holdTimer.current = undefined;
+    setHoldingRoute(false);
+  };
   const restart = () => { simulation.reset(); setEngineStatus("idle"); refresh(); setJournalOpen(false); };
   const inspectConfiguration = (id: string, channel: ConfigurationChannel) => setConfigurationPreview(simulation.previewConfiguration(id, channel));
   const commitConfiguration = () => {
@@ -121,6 +136,7 @@ export default function Home() {
   };
   const verifyReplay = () => setReplayStatus(simulation.replayDeterministically() ? "verified" : "mismatch");
   const openServiceTasks = state.service.tasks.filter((task) => !task.resolved);
+  const handsOnReady = state.handsOn.step === 3;
 
   return (
     <main className={`thermostat-shell ${profile.lowSensory ? "low-sensory" : ""} ${profile.reducedMotion ? "reduce-motion" : ""}`} style={{ fontSize: `${profile.textScale}em` }}>
@@ -137,30 +153,17 @@ export default function Home() {
             <span><b>ОДИН ДЕНЬ</b><em>ТЕРМОСТАТА</em></span>
           </button>
           <div className="top-actions">
-            <button className="icon-button" onClick={() => setJournalOpen(true)} aria-label="Открыть журнал"><Archive size={18} /><span>J</span></button>
-            <button className="icon-button" onClick={() => setConfigurationOpen(true)} aria-label="Открыть firmware и modifiers"><SlidersHorizontal size={18} /><span>C</span></button>
-            <button className="icon-button" onClick={() => setServiceOpen(true)} aria-label="Открыть сервис и обзор дня"><Wrench size={17} /><span>V</span></button>
+            {handsOnReady && <button className="icon-button" onClick={() => setJournalOpen(true)} aria-label="Открыть журнал"><Archive size={18} /><span>J</span></button>}
+            {handsOnReady && <button className="icon-button" onClick={() => setConfigurationOpen(true)} aria-label="Открыть настройки маршрутов"><SlidersHorizontal size={18} /><span>C</span></button>}
+            {handsOnReady && <button className="icon-button" onClick={() => setServiceOpen(true)} aria-label="Открыть задачи дома"><Wrench size={17} /><span>V</span></button>}
             <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Открыть настройки доступности"><Settings2 size={18} /></button>
           </div>
         </header>
 
         <aside className="observation-rail">
           <div className="tick-stamp"><span>ТИК</span><b>{String(state.tick).padStart(3, "0")}</b></div>
-          <div className="phase-pill"><span className={`phase-dot phase-${state.phase}`} />{state.dayComplete ? "НОВЫЙ BASELINE" : state.phase === "warning" ? "РЕШЕНИЕ ВИДИМО" : "НАБЛЮДЕНИЕ"}</div>
-          <p className="eyebrow">ЦЕПОЧКА {state.chainIndex + 1} / 3</p>
-          <h1>{state.chainTitle}</h1>
-          <p className="trace-copy">{state.trace}</p>
-          <button className="caption-card diagnostic-trigger" onClick={() => setSensorOpen(true)} aria-label="Открыть сенсоры и диагностику"><AudioLines size={17} /><p>{state.caption}</p><ScanSearch size={15} /></button>
-          {state.tutorial.current !== "complete" && <section className="tutorial-rail" aria-live="polite"><p className="eyebrow">ОБУЧЕНИЕ / БЕЗ ПАУЗЫ</p><b>{state.tutorial.current === "observe_heat" ? "Прочитай тепловой след" : state.tutorial.current === "read_vibration" ? "Сверь вибрацию" : state.tutorial.current === "compare_routes" ? "Сравни цену маршрутов" : "Посмотри на новый baseline"}</b><small>Подсказка не отменяет выбор и не создаёт fail-state.</small></section>}
-          <div className="sensor-stack" aria-label="Материальные датчики">
-            {meters.map((meter) => {
-              const value = Math.round(state.metrics[meter.key] * 100);
-              return <div className="sensor-row" key={meter.key}>
-                <span className="sensor-pattern">{meter.pattern}</span><span>{meter.name}</span><b>{value}</b>
-              </div>;
-            })}
-          </div>
-          <button className="achievement-strip" onClick={() => setJournalOpen(true)} aria-label="Открыть достижения в Archive"><Trophy size={16} /><span><b>{state.achievements.unlocked.length} LOCAL TRACE</b><small>{state.achievements.pendingPlatformTags.length ? `${state.achievements.pendingPlatformTags.length} ждут platform mirror` : "A · открыть Archive"}</small></span></button>
+          <div className="phase-pill"><span className={`phase-dot phase-${state.phase}`} />{!handsOnReady ? "ПЕРВЫЙ СЛЕД" : state.dayComplete ? "НОВЫЙ BASELINE" : state.phase === "warning" ? "РЕШЕНИЕ ВИДИМО" : "НАБЛЮДЕНИЕ"}</div>
+          {!handsOnReady ? <section className="first-goal" aria-live="polite"><p className="eyebrow">ПЕРВАЯ ЗАДАЧА</p><h1>Сохрани<br />тихое окно.</h1><p>{state.handsOn.feedback}</p><div className="goal-progress" aria-label={`Собрано следов: ${state.handsOn.step} из 3`}><span className={state.handsOn.step >= 1 ? "done" : ""} /><span className={state.handsOn.step >= 2 ? "done" : ""} /><span className={state.handsOn.step >= 3 ? "done" : ""} /><b>{state.handsOn.step}/3 СЛЕДА</b></div><small>Нажимай на дом. Никаких меню пока не нужно.</small></section> : <><p className="eyebrow">ЦЕПОЧКА {state.chainIndex + 1} / 3</p><h1>{state.chainTitle}</h1><p className="trace-copy">{state.trace}</p><button className="caption-card diagnostic-trigger" onClick={() => setSensorOpen(true)} aria-label="Открыть сенсоры и диагностику"><AudioLines size={17} /><p>{state.caption}</p><ScanSearch size={15} /></button>{state.tutorial.current !== "complete" && <section className="tutorial-rail" aria-live="polite"><p className="eyebrow">ОБУЧЕНИЕ / БЕЗ ПАУЗЫ</p><b>{state.tutorial.current === "observe_heat" ? "Прочитай тепловой след" : state.tutorial.current === "read_vibration" ? "Сверь вибрацию" : state.tutorial.current === "compare_routes" ? "Сравни цену маршрутов" : "Посмотри на новый baseline"}</b><small>Подсказка не отменяет выбор и не создаёт fail-state.</small></section>}<div className="sensor-stack" aria-label="Материальные датчики">{meters.map((meter) => { const value = Math.round(state.metrics[meter.key] * 100); return <div className="sensor-row" key={meter.key}><span className="sensor-pattern">{meter.pattern}</span><span>{meter.name}</span><b>{value}</b></div>; })}</div><button className="achievement-strip" onClick={() => setJournalOpen(true)} aria-label="Открыть достижения в Archive"><Trophy size={16} /><span><b>{state.achievements.unlocked.length} LOCAL TRACE</b><small>{state.achievements.pendingPlatformTags.length ? `${state.achievements.pendingPlatformTags.length} ждут platform mirror` : "A · открыть Archive"}</small></span></button></>}
         </aside>
 
         <div className="canvas-caption"><Gauge size={15} /> <span>МАРШРУТЫ — МАТЕРИАЛЬНЫЕ; ЖИЛЬЦЫ НЕ ЯВЛЯЮТСЯ ЦЕЛЬЮ УПРАВЛЕНИЯ</span></div>
@@ -168,14 +171,16 @@ export default function Home() {
         {!state.started && <div className="onboarding" role="dialog" aria-modal="true" aria-label="Начать день">
           <div className="onboarding-mark"><img src={LOGO} alt="" /></div>
           <div className="onboarding-rule" />
-          <p className="eyebrow">ЛОКАЛЬНЫЙ ДЕНЬ · СОХРАНЯЕТСЯ В БРАУЗЕРЕ</p>
-          <h2>Дом уже говорит следами.<br /><i>Сначала наблюдай.</i></h2>
-          <p>Ты не управляешь людьми и не ставишь диагнозы. Ты выбираешь видимые маршруты тепла, воздуха и восстановления.</p>
-          <button className="primary-cta" onClick={begin}><span>НАЧАТЬ НАБЛЮДЕНИЕ</span><ChevronDown size={18} /></button>
-          <small>Q — бережный маршрут · E — прямой маршрут · J — Journal</small>
+          <p className="eyebrow">ОДНА КОМНАТА · ОДИН ХОЛОДНЫЙ СЛЕД</p>
+          <h2>В кухню<br />тянет холодом.</h2>
+          <p>Сначала просто найди раму, удержи маршрут и проверь тёплую стену.</p>
+          <button className="primary-cta" onClick={begin}><span>ПОКАЗАТЬ СЛЕД</span><ChevronDown size={18} /></button>
+          <small>Три коротких действия — затем появится настоящий выбор.</small>
         </div>}
 
-        {state.started && !state.dayComplete && <section className="route-deck" aria-label="Доступные маршруты">
+        {state.started && !handsOnReady && <section className="hands-on-deck" aria-label="Первые действия с домом"><div className="hands-on-heading"><span>ТИХОЕ ОКНО · {state.handsOn.step}/3</span><p>{state.handsOn.step === 0 ? "Нажми на раму — холодный след покажет маршрут." : state.handsOn.step === 1 ? "Удерживай медную связь, пока она не защёлкнется." : "Коснись тёплой стены — затем появится два маршрута."}</p></div><div className="hands-on-actions"><button className={`hands-on-card ${state.handsOn.step === 0 ? "active" : "done"}`} onClick={() => performHandsOn("touch_frame")} disabled={state.handsOn.step !== 0}><span>01</span><b>{state.handsOn.step > 0 ? "РАМА НАЙДЕНА" : "КОСНИСЬ РАМЫ"}</b><small>Холод вошёл здесь.</small></button><button className={`hands-on-card hold-card ${state.handsOn.step === 1 ? "active" : state.handsOn.step > 1 ? "done" : ""} ${holdingRoute ? "holding" : ""}`} onPointerDown={beginHoldRoute} onPointerUp={cancelHoldRoute} onPointerCancel={cancelHoldRoute} onPointerLeave={cancelHoldRoute} onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); beginHoldRoute(); } }} onKeyUp={cancelHoldRoute} disabled={state.handsOn.step !== 1}><span>02</span><b>{state.handsOn.step > 1 ? "СВЯЗЬ ДЕРЖИТ" : holdingRoute ? "ДЕРЖИ…" : "УДЕРЖИВАЙ СВЯЗЬ"}</b><small>{holdingRoute ? "Ещё мгновение." : "0.6 секунды — без спешки."}</small></button><button className={`hands-on-card ${state.handsOn.step === 2 ? "active" : state.handsOn.step > 2 ? "done" : ""}`} onClick={() => performHandsOn("touch_wall")} disabled={state.handsOn.step !== 2}><span>03</span><b>{state.handsOn.step > 2 ? "ОКНО СОХРАНЕНО" : "КОСНИСЬ СТЕНЫ"}</b><small>Проверь, что тепло осталось.</small></button></div></section>}
+
+        {state.started && handsOnReady && !state.dayComplete && <section className="route-deck" aria-label="Доступные маршруты">
           <div className="route-deck-heading"><span>{state.event.state === "warning" ? "SAFE ISOLATE / BRANCH 26" : "МАРШРУТЫ"}</span><p>{state.event.state === "foreshadow" ? "Два независимых предвестника ветви 26 уже доступны. Сначала собери гипотезу." : state.event.state === "warning" ? "Контур ограничивает риск. Оба маршрута безопасны и оставляют различимую цену." : state.phase === "warning" ? "Две видимые цены. Ни один путь не завершает день преждевременно." : "Сначала дождись, пока дом покажет оба предвестника."}</p></div>
           <div className="route-options">
             {state.options.length > 0 ? state.options.map((option) => <button key={option.id} className={`route-card ${option.id}`} onClick={() => choose(option.id)}>
