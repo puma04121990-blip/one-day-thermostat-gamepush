@@ -16,6 +16,13 @@
 - [x] Cover unknown IDs, preview non-mutation, stale rejection, tick commit and save restore in Vitest.
 - [x] Run browser/Core CI, merge through GitHub and checkpoint the playable browser version.
 
+## React duplicate-key runtime fix
+
+- [x] Locate every service trace list keyed by human-readable text.
+- [x] Replace the repeated text key with a stable unique key derived from item ID/index.
+- [x] Verify the direct-route duplicate trace case produces no browser console key warning.
+- [ ] Run tests, TypeScript, production build and merge the fix through GitHub.
+
 ## Local-first achievements browser port
 
 - [x] Compare legacy achievement triggers, Archive contract and pending platform tag semantics.
