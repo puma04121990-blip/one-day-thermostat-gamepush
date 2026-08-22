@@ -87,6 +87,11 @@ namespace OneDayThermostat.Presentation.Runtime
 
         public ConfigurationPreviewDTO PreviewModifier(string modifierId, ModifierChannel channel) => _orchestrator.PreviewModifier(_world, modifierId, channel);
 
+        public void CompleteServiceFollowUp(string followUpId)
+        {
+            _orchestrator.Enqueue(_world, new SimulationCommand { Kind = CommandKind.CompleteServiceFollowUp, TargetId = followUpId, Value = 1f, Source = "player" });
+        }
+
         public void SelectFirmware(string firmwareId)
         {
             _orchestrator.Enqueue(_world, new SimulationCommand { Kind = CommandKind.SelectFirmware, TargetId = firmwareId, Value = 1f, Source = "player" });

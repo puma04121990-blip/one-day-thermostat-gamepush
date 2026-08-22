@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OneDayThermostat.Core
 {
@@ -8,7 +9,7 @@ namespace OneDayThermostat.Core
     public enum StressSource { BaseRun, StartStop, TemperatureDelta, MoistureResidual, NetworkPeak, RouteConflict, SurfaceLag, RecoveryOffset }
     public enum EventPhase { Dormant, Foreshadow, Warning, Active, Aftermath, Cooldown }
     public enum PolicyDecisionStatus { Suggested, Valid, Blocked, Superseded }
-    public enum CommandKind { SetRoute, Tune, Pulse, Isolate, Recover, CommitPolicy, CancelPolicy, SelectFirmware, SelectSensorModifier, SelectRouteModifier }
+    public enum CommandKind { SetRoute, Tune, Pulse, Isolate, Recover, CommitPolicy, CancelPolicy, SelectFirmware, SelectSensorModifier, SelectRouteModifier, CompleteServiceFollowUp }
 
     [Serializable]
     public sealed class ZoneState
@@ -151,17 +152,41 @@ namespace OneDayThermostat.Core
     }
 
     [Serializable]
+    public sealed class ServiceFollowUp
+    {
+        public string Id = string.Empty;
+        public string ComponentId = string.Empty;
+        public string ReasonKey = string.Empty;
+        public string ActionKey = string.Empty;
+        public string OutcomeKey = string.Empty;
+        public long CreatedTick;
+        public long CompletedTick = -1;
+        public bool IsResolved;
+
+        public ServiceFollowUp Clone() => (ServiceFollowUp)MemberwiseClone();
+    }
+
+    [Serializable]
     public sealed class ArchiveState
     {
         public int StewardshipCredits;
         public readonly HashSet<string> UnlockedEntries = new HashSet<string>();
         public readonly List<string> UnresolvedCosts = new List<string>();
+        public readonly List<ServiceFollowUp> ServiceFollowUps = new List<ServiceFollowUp>();
+        public bool EndOfDayReviewAvailable;
+        public string EndOfDayReviewKey = string.Empty;
 
         public ArchiveState Clone()
         {
-            var result = new ArchiveState { StewardshipCredits = StewardshipCredits };
+            var result = new ArchiveState
+            {
+                StewardshipCredits = StewardshipCredits,
+                EndOfDayReviewAvailable = EndOfDayReviewAvailable,
+                EndOfDayReviewKey = EndOfDayReviewKey
+            };
             foreach (var entry in UnlockedEntries) result.UnlockedEntries.Add(entry);
             result.UnresolvedCosts.AddRange(UnresolvedCosts);
+            result.ServiceFollowUps.AddRange(ServiceFollowUps.Select(x => x.Clone()));
             return result;
         }
     }

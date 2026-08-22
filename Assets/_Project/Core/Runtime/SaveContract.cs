@@ -59,6 +59,9 @@ namespace OneDayThermostat.Core
         public int stewardshipCredits;
         public string[] unlockedEntries = Array.Empty<string>();
         public string[] unresolvedCosts = Array.Empty<string>();
+        public ServiceFollowUp[] serviceFollowUps = Array.Empty<ServiceFollowUp>();
+        public bool endOfDayReviewAvailable;
+        public string endOfDayReviewKey = string.Empty;
     }
 
     [Serializable]
@@ -134,7 +137,10 @@ namespace OneDayThermostat.Core
                 {
                     stewardshipCredits = world.Archive.StewardshipCredits,
                     unlockedEntries = world.Archive.UnlockedEntries.ToArray(),
-                    unresolvedCosts = world.Archive.UnresolvedCosts.ToArray()
+                    unresolvedCosts = world.Archive.UnresolvedCosts.ToArray(),
+                    serviceFollowUps = world.Archive.ServiceFollowUps.Select(x => x.Clone()).ToArray(),
+                    endOfDayReviewAvailable = world.Archive.EndOfDayReviewAvailable,
+                    endOfDayReviewKey = world.Archive.EndOfDayReviewKey
                 },
                 logCursor = new CommandLogCursorDTO { lastCommittedTick = world.Tick, committedCount = 0 }
             };
@@ -171,6 +177,9 @@ namespace OneDayThermostat.Core
             world.Archive.StewardshipCredits = root.archive.stewardshipCredits;
             foreach (var entry in root.archive.unlockedEntries ?? Array.Empty<string>()) world.Archive.UnlockedEntries.Add(entry);
             world.Archive.UnresolvedCosts.AddRange(root.archive.unresolvedCosts ?? Array.Empty<string>());
+            world.Archive.ServiceFollowUps.AddRange((root.archive.serviceFollowUps ?? Array.Empty<ServiceFollowUp>()).Select(x => x.Clone()));
+            world.Archive.EndOfDayReviewAvailable = root.archive.endOfDayReviewAvailable;
+            world.Archive.EndOfDayReviewKey = root.archive.endOfDayReviewKey;
             return world;
         }
 

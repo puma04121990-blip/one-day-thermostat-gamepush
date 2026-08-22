@@ -13,6 +13,8 @@
 | Добровольная adaptation | `ResidentRhythmSystem` | PlayMode fixture | Не обязательна для успеха. |
 | Component wear/hysteresis/recovery | `ComponentStressSystem`, `ComponentState` | EditMode stage/recovery tests | No unrecoverable invisible failure. |
 | Save/load/migration | `ThermostatSaveRootDTO`, `SaveCoordinator`, `SaveMapper` | DTO round-trip; corrupt-current/backup fixture | Mid-event/policy states survive. |
+| Service follow-up | `ServiceFollowUpSystem`, `ArchiveState.ServiceFollowUps`, typed service command | Core smoke: materialization, resolution, bounded recovery, save round-trip | Последствия ссылаются на компонент, остаются решаемыми и не касаются жилья. |
+| End-of-day review | Archive review key в `Cooldown`, Journal/service panel | Three-chain fixture + Unity manual pass | Завершение дня объясняет baseline без score или hard fail. |
 | Rules bounded | `PolicyRuleDefinition.IsWellFormed` | Unit test missing `UNTIL` blocks | UI has Preview/Commit parity. |
 | Firmware/modifier whitelist | `FirmwareModifierCatalog`, typed selection commands, authoring assets | Core smoke: preview/no mutation, channel mismatch, unknown ID rejection | Нет arbitrary code, unknown selection или bypass Governor. |
 | Bounded configuration effect | `TuneReasons`, `ApplyRouteModifier`, player-facing summary | Core smoke: direct boost bounded effect | Максимум две причины и route value остаётся нормализованным. |

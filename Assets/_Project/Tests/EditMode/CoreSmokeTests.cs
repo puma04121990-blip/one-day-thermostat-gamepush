@@ -16,6 +16,7 @@ namespace OneDayThermostat.Tests
                 SaveMapperRoundTripPreservesAuthority();
                 CampaignProgressionReachesStagedReturnBaseline();
                 FirmwareModifiersAreWhitelistedAndPreviewedBeforeCommit();
+                ServiceFollowUpsAreRecoverableAndPersisted();
                 CanonicalScenarioCatalogMeetsFairnessContract();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
@@ -105,6 +106,31 @@ namespace OneDayThermostat.Tests
             Assert(world.Archive.UnlockedEntries.Contains("archive.silver_corridor"), "silver corridor aftermath should be archived");
             Assert(world.Archive.UnlockedEntries.Contains("archive.staged_return"), "staged return aftermath should be archived");
             Assert(world.Archive.UnlockedEntries.Contains("archive.day_complete"), "complete day should create a reflective archive entry");
+            Assert(world.Archive.EndOfDayReviewAvailable, "recoverable day completion should offer an end-of-day review");
+            Assert(world.Archive.EndOfDayReviewKey == "review.day.stewardship_complete", "careful completion should communicate stewardship baseline");
+        }
+
+        private static void ServiceFollowUpsAreRecoverableAndPersisted()
+        {
+            var world = SimulationWorld.CreatePrologue(47);
+            var orchestrator = new SimulationOrchestrator();
+            world.Component("component.branch_26").Wear = .54f;
+            world.Archive.UnresolvedCosts.Add("cost.branch_26_resonance");
+
+            orchestrator.Step(world);
+            Assert(world.Archive.ServiceFollowUps.Count == 1, "visible unresolved cost should materialize one service follow-up");
+            var followUp = world.Archive.ServiceFollowUps[0];
+            Assert(followUp.ComponentId == "component.branch_26", "service follow-up should identify material component rather than a resident");
+            var wearBeforeService = world.Component("component.branch_26").Wear;
+
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.CompleteServiceFollowUp, TargetId = followUp.Id, Source = "test" });
+            orchestrator.Step(world);
+            Assert(followUp.IsResolved, "explicit service action should resolve the selected follow-up");
+            Assert(world.Component("component.branch_26").Wear < wearBeforeService, "service action should produce bounded component recovery");
+            Assert(world.Archive.UnlockedEntries.Contains("service.outcome.branch_rebalanced"), "service action should leave a player-facing Archive outcome");
+
+            var restored = SaveMapper.ToWorld(SaveMapper.ToDto(world, "service_slot", "test"));
+            Assert(restored.Archive.ServiceFollowUps.Count == 1 && restored.Archive.ServiceFollowUps[0].IsResolved, "service follow-up completion must survive save round-trip");
         }
 
         private static void FirmwareModifiersAreWhitelistedAndPreviewedBeforeCommit()

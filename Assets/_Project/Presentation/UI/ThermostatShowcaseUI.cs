@@ -22,6 +22,8 @@ namespace OneDayThermostat.Presentation.UI
         private Text _caption;
         private Text _policy;
         private Text _configuration;
+        private Text _service;
+        private Button _serviceAction;
         private Text _archive;
         private Button _routeA;
         private Button _routeB;
@@ -121,6 +123,10 @@ namespace OneDayThermostat.Presentation.UI
             Stretch(routeModifier.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -468, -18, -508);
             var commitConfiguration = CreateButton(rightPanel, "CommitConfiguration", "ПРИМЕНИТЬ ПРОСМОТРЕННОЕ", CommitConfiguration);
             Stretch(commitConfiguration.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -524, -18, -564);
+            CreateText(rightPanel, "ServiceHeading", "СЕРВИС И ОБЗОР ДНЯ", 15, _cyan, TextAnchor.UpperLeft, new Vector2(18, -586), new Vector2(-18, -612));
+            _service = CreateText(rightPanel, "Service", "Сервис: наблюдение за последствиями…", 14, new Color(.88f, .91f, .92f), TextAnchor.UpperLeft, new Vector2(18, -620), new Vector2(-18, -680));
+            _serviceAction = CreateButton(rightPanel, "CompleteService", "ВЫПОЛНИТЬ ОБСЛУЖИВАНИЕ", CompleteFirstService);
+            Stretch(_serviceAction.GetComponent<RectTransform>(), 0, 1, 1, 1, 18, -692, -18, -732);
 
             var settings = CreatePanel(canvasRoot.transform, "Accessibility", _slate);
             Stretch(settings, 0, 0, 0, 0, 28, 24, 330, 174);
@@ -211,6 +217,7 @@ namespace OneDayThermostat.Presentation.UI
                 : "ЖУРНАЛ: " + string.Join(" · ", snapshot.Archive.UnlockedEntries.Take(3).Select(ArchiveLabel)) + (string.IsNullOrWhiteSpace(snapshot.Event.LastOutcomeKey) ? string.Empty : "\nПоследствие: " + OutcomeLabel(snapshot.Event.LastOutcomeKey));
             UpdateRouteChoices(snapshot);
             UpdateConfigurationSummary(snapshot);
+            UpdateServiceSummary(snapshot);
         }
 
         private void CommitPrimaryRoute()
@@ -292,6 +299,35 @@ namespace OneDayThermostat.Presentation.UI
             if (_lastConfigurationPreview.ModifierChannel.HasValue) _driver.SelectModifier(_lastConfigurationPreview.SelectionId, _lastConfigurationPreview.ModifierChannel.Value);
             else _driver.SelectFirmware(_lastConfigurationPreview.SelectionId);
             _policy.text = "Policy Log: конфигурация поставлена в очередь. Следующий тик сохранит видимый компромисс.";
+        }
+
+        private void CompleteFirstService()
+        {
+            var followUp = _driver.CurrentSnapshot.Archive.ServiceFollowUps.FirstOrDefault(x => !x.IsResolved);
+            if (followUp == null)
+            {
+                _policy.text = "Policy Log: открытых service follow-up нет.";
+                return;
+            }
+            _driver.CompleteServiceFollowUp(followUp.Id);
+            _policy.text = "Policy Log: обслуживание поставлено в очередь. Т‑3 сохранит материальный результат после следующего тика.";
+        }
+
+        private void UpdateServiceSummary(SimulationSnapshot snapshot)
+        {
+            if (_service == null || _serviceAction == null) return;
+            var followUp = snapshot.Archive.ServiceFollowUps.FirstOrDefault(x => !x.IsResolved);
+            if (followUp != null)
+            {
+                _service.text = "Сервис: " + ServiceLabel(followUp.ReasonKey) + "\nДействие: " + ServiceLabel(followUp.ActionKey);
+                _serviceAction.gameObject.SetActive(true);
+                SetRouteButtonLabel(_serviceAction, "ОБСЛУЖИТЬ: " + ServiceLabel(followUp.ComponentId));
+                return;
+            }
+            _serviceAction.gameObject.SetActive(false);
+            _service.text = snapshot.Archive.EndOfDayReviewAvailable
+                ? "ОБЗОР ДНЯ: " + ReviewLabel(snapshot.Archive.EndOfDayReviewKey)
+                : "Сервис: последствий для обслуживания пока нет.";
         }
 
         private void UpdateConfigurationSummary(SimulationSnapshot snapshot)
@@ -384,9 +420,19 @@ namespace OneDayThermostat.Presentation.UI
             return key == "reason.external_air_at_threshold" ? "у порога внешний воздух" : key == "reason.start_stop" ? "ветвь 26 часто стартует и останавливается" : key == "reason.quiet_window" ? "маршрут пересекает тихое окно" : key == "reason.temperature_delta" ? "перепад между стояком и порогом" : key == "reason.moisture_residual" ? "влага не ушла из контура" : key == "governor.protective_lockout" ? "защитный режим компонента" : key;
         }
 
+        private static string ServiceLabel(string key)
+        {
+            return key == "cost.branch_26_resonance" ? "ветвь 26 просит окно восстановления" : key == "cost.kitchen_queue" ? "дренаж сохраняет очередь" : key == "cost.second_network_peak" ? "сеть сохранила второй пик" : key == "service.action.balance_branch" ? "сбалансировать ветвь" : key == "service.action.clear_drain_window" ? "очистить окно дренажа" : key == "service.action.stage_network_return" ? "вернуть сеть по этапам" : key == "component.branch_26" ? "ветвь 26" : key == "component.kitchen_drain" ? "кухонный дренаж" : key == "component.network_main" ? "главная сеть" : key;
+        }
+
+        private static string ReviewLabel(string key)
+        {
+            return key == "review.day.stewardship_complete" ? "контуры собраны без открытых service follow-up" : key == "review.day.service_follow_up_open" ? "дом закончил день с открытым материальным обслуживанием" : key;
+        }
+
         private static string ArchiveLabel(string key)
         {
-            return key == "archive.first_flow" ? "первый поток" : key == "archive.threshold_route" ? "порог" : key == "archive.quiet_route" ? "тихий маршрут" : key == "archive.silver_corridor" ? "серебряный коридор" : key == "archive.staged_return" ? "поэтапный возврат" : key == "archive.day_complete" ? "день собран" : key;
+            return key == "archive.first_flow" ? "первый поток" : key == "archive.threshold_route" ? "порог" : key == "archive.quiet_route" ? "тихий маршрут" : key == "archive.silver_corridor" ? "серебряный коридор" : key == "archive.staged_return" ? "поэтапный возврат" : key == "archive.day_complete" ? "день собран" : key == "archive.service_follow_up" ? "сервисный след" : key == "archive.end_of_day_review" ? "обзор дня" : key == "service.outcome.branch_rebalanced" ? "ветвь сбалансирована" : key == "service.outcome.drain_window_cleared" ? "окно дренажа очищено" : key == "service.outcome.network_return_staged" ? "возврат сети собран" : key;
         }
 
         private static string OutcomeLabel(string key)
