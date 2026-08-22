@@ -35,14 +35,14 @@
 |---|---|
 | `Assets/_Project/Core` | Модель дома, fixed-tick orchestrator, snapshots, команды, save DTO и safe-write coordinator |
 | `Assets/_Project/Gameplay` | Climate/wear/event/rhythm systems, policy AST, Safety Governor и diagnostics |
-| `Assets/_Project/Presentation` | Unity driver, будущий cutaway/UI/audio/accessibility bridge |
+| `Assets/_Project/Presentation` | Unity driver, cutaway/UI, local-first accessibility profile и platform pause overlay |
 | `Assets/_Project/Platform` | `IGamePlatform`, local fallback и GamePush adapter под compile symbol `GAMEPUSH_SDK` |
 | `Assets/_Project/Tests` | Smoke-test детерминизма, Governor и save mapping; Unity tests/fixtures расширяются по мере контента |
 | `Docs` | Архитектура, GamePush setup, контентные схемы, traceability, QA и release gates |
 
 ## Быстрый старт в Unity
 
-Клонируйте приватный репозиторий, откройте его в указанной версии Unity 6 и позвольте Package Manager восстановить URP/Input System/Test Framework. Сцена и UI-слой собираются из описанных в `Docs/` компонентов; на первом открытии игра использует `NullGamePlatform`, поэтому Project ID и Public Token не требуются для local/editor play mode.
+Клонируйте публичный репозиторий, откройте его в указанной версии Unity 6 и позвольте Package Manager восстановить URP/Input System/Test Framework. Сцена и UI-слой собираются из описанных в `Docs/` компонентов; на первом открытии игра использует `NullGamePlatform`, поэтому Project ID и Public Token не требуются для local/editor play mode.
 
 ```bash
 gh repo clone puma04121990-blip/one-day-thermostat-gamepush
@@ -71,11 +71,17 @@ gh repo clone puma04121990-blip/one-day-thermostat-gamepush
 ```bash
 mcs -langversion:latest -out:/tmp/one-day-thermostat-core-tests.exe \
   Assets/_Project/Core/Runtime/ThermostatDomain.cs \
+  Assets/_Project/Core/Runtime/AccessibilityProfileState.cs \
   Assets/_Project/Core/Runtime/SimulationWorld.cs \
   Assets/_Project/Core/Runtime/SimulationOrchestrator.cs \
   Assets/_Project/Core/Runtime/SaveContract.cs \
   Assets/_Project/Gameplay/Climate/AuthoritativeSystems.cs \
+  Assets/_Project/Gameplay/Climate/ServiceFollowUpSystem.cs \
   Assets/_Project/Gameplay/Automation/AutomationAndDiagnostics.cs \
+  Assets/_Project/Gameplay/Automation/FirmwareModifierCatalog.cs \
+  Assets/_Project/Gameplay/Progression/AchievementProgression.cs \
+  Assets/_Project/Content/Localization/Runtime/LocalizationCatalog.cs \
+  Assets/_Project/Content/Runtime/ScenarioDefinitions.cs \
   Assets/_Project/Tests/EditMode/CoreSmokeTests.cs && \
 mono /tmp/one-day-thermostat-core-tests.exe
 ```
@@ -86,11 +92,11 @@ mono /tmp/one-day-thermostat-core-tests.exe
 
 Ни один значимый сигнал не должен существовать только в цвете, звуке или движении: обязательны label, pattern/shape, caption и canonical text. Low-sensory выключает несущественные motion/слои звука, но не удаляет предвестник или решение. Любая automation rule требует `WHEN / IF / THEN / UNTIL / SHOW`; Preview использует тот же evaluator, что и commit, а Governor обязан объяснить блок и предложить безопасную альтернативу.
 
-Полный checklist, миграции, тесты, content schema и Definition of Done перечислены в [`Docs/`](Docs/). Сценарный маршрут, player-facing цены и ожидаемый новый baseline описаны в [`Docs/VERTICAL_SLICE.md`](Docs/VERTICAL_SLICE.md). Безопасный preview/commit контур firmware и modifiers описан в [`Docs/FIRMWARE_MODIFIERS.md`](Docs/FIRMWARE_MODIFIERS.md). Материальные последствия, service follow-up и end-of-day review описаны в [`Docs/SERVICE_FOLLOW_UP.md`](Docs/SERVICE_FOLLOW_UP.md). Typed локализация, semantic content keys и authoring workflow описаны в [`Docs/LOCALIZATION_AND_CONTENT.md`](Docs/LOCALIZATION_AND_CONTENT.md). Data-driven достижения, local-first pending sync и GamePush lifecycle описаны в [`Docs/ACHIEVEMENTS_AND_GAMEPUSH.md`](Docs/ACHIEVEMENTS_AND_GAMEPUSH.md). Правила CI и статус серверной защиты основной ветки описаны в [`Docs/GITHUB_GOVERNANCE.md`](Docs/GITHUB_GOVERNANCE.md). Неподтверждённые метрики, коммерческие ожидания и pitches из исходной документации не трактуются как фактические обещания продукта.
+Полный checklist, миграции, тесты, content schema и Definition of Done перечислены в [`Docs/`](Docs/). Сценарный маршрут, player-facing цены и ожидаемый новый baseline описаны в [`Docs/VERTICAL_SLICE.md`](Docs/VERTICAL_SLICE.md). Безопасный preview/commit контур firmware и modifiers описан в [`Docs/FIRMWARE_MODIFIERS.md`](Docs/FIRMWARE_MODIFIERS.md). Материальные последствия, service follow-up и end-of-day review описаны в [`Docs/SERVICE_FOLLOW_UP.md`](Docs/SERVICE_FOLLOW_UP.md). Typed локализация, semantic content keys и authoring workflow описаны в [`Docs/LOCALIZATION_AND_CONTENT.md`](Docs/LOCALIZATION_AND_CONTENT.md). Сохраняемые accessibility preferences, keyboard shortcuts, focus contract и pause/resume/restart behaviour описаны в [`Docs/ACCESSIBILITY_PROFILES.md`](Docs/ACCESSIBILITY_PROFILES.md). Data-driven достижения, local-first pending sync и GamePush lifecycle описаны в [`Docs/ACHIEVEMENTS_AND_GAMEPUSH.md`](Docs/ACHIEVEMENTS_AND_GAMEPUSH.md). Правила CI и статус серверной защиты основной ветки описаны в [`Docs/GITHUB_GOVERNANCE.md`](Docs/GITHUB_GOVERNANCE.md). Неподтверждённые метрики, коммерческие ожидания и pitches из исходной документации не трактуются как фактические обещания продукта.
 
 ## Лицензирование и секреты
 
-Исходники находятся в приватном репозитории. До выбора владельцем юридической модели распространения применяется **All Rights Reserved**. Не добавляйте в commits GamePush credentials, локальные player saves, WebGL build output, Unity `Library/` или профилировочные captures. Права и происхождение каждого нового визуального/звукового ассета фиксируются в asset manifest.
+Исходники размещены в публично доступном репозитории, но до отдельного выбора владельцем юридической модели распространения применяется **All Rights Reserved**. Публичная видимость не предоставляет разрешение на повторное использование, распространение или создание производных работ. Не добавляйте в commits GamePush credentials, локальные player saves, WebGL build output, Unity `Library/` или профилировочные captures. Права и происхождение каждого нового визуального/звукового ассета фиксируются в asset manifest.
 
 ## Ссылки
 

@@ -19,8 +19,12 @@ namespace OneDayThermostat.Presentation.Runtime
         [SerializeField] private bool autoSaveAtEventBoundary = true;
         [SerializeField] private bool reducedMotion;
         [SerializeField] private bool lowSensory;
+        [SerializeField] [Range(.85f, 1.35f)] private float textScale = 1f;
+        [SerializeField] private bool keyboardHints = true;
 
         private SimulationWorld _world;
+        private AccessibilityProfileStore _accessibilityProfiles;
+        public AccessibilityProfile Accessibility { get; private set; }
         private SimulationOrchestrator _orchestrator;
         private SaveCoordinator _saves;
         private float _accumulator;
@@ -34,8 +38,9 @@ namespace OneDayThermostat.Presentation.Runtime
         private void Awake()
         {
             _world = SimulationWorld.CreatePrologue(scenarioSeed);
-            _world.ReducedMotion = reducedMotion;
-            _world.LowSensory = lowSensory;
+            _accessibilityProfiles = new AccessibilityProfileStore(Application.persistentDataPath);
+            Accessibility = _accessibilityProfiles.LoadOrDefault(new AccessibilityProfile { reducedMotion = reducedMotion, lowSensory = lowSensory, textScale = textScale, keyboardHints = keyboardHints });
+            ApplyAccessibilityToWorld();
             _orchestrator = new SimulationOrchestrator();
             _saves = new SaveCoordinator(new FileSaveStorage(), new UnityJsonSaveSerializer(), Application.persistentDataPath);
             _orchestrator.SnapshotPublished += Publish;
@@ -61,7 +66,23 @@ namespace OneDayThermostat.Presentation.Runtime
 
         private void OnApplicationPause(bool paused)
         {
-            if (paused) Save();
+            if (paused)
+            {
+                Save();
+                SaveAccessibilityProfile();
+            }
+        }
+
+        private void OnApplicationFocus(bool focused)
+        {
+            if (!focused)
+            {
+                Save();
+                SaveAccessibilityProfile();
+                return;
+            }
+            _accumulator = 0f; // no catch-up ticks after a platform overlay or browser resume
+            if (_world != null) Publish(_world.CreateSnapshot());
         }
 
         public void StartSession()
@@ -126,19 +147,49 @@ namespace OneDayThermostat.Presentation.Runtime
         public void Load()
         {
             _world = _saves.LoadNewestValid(slotId);
-            _world.ReducedMotion = reducedMotion;
-            _world.LowSensory = lowSensory;
+            ApplyAccessibilityToWorld();
             _lastEventPhase = _world.Event.Phase;
             Publish(_world.CreateSnapshot());
         }
 
         public void SetAccessibility(bool reducedMotionValue, bool lowSensoryValue)
         {
-            reducedMotion = reducedMotionValue;
-            lowSensory = lowSensoryValue;
+            if (Accessibility == null) Accessibility = new AccessibilityProfile();
+            Accessibility.reducedMotion = reducedMotionValue;
+            Accessibility.lowSensory = lowSensoryValue;
+            ApplyAccessibilityToWorld();
+            SaveAccessibilityProfile();
+            Publish(_world.CreateSnapshot());
+        }
+
+        public void SetTextScale(float scale)
+        {
+            if (Accessibility == null) Accessibility = new AccessibilityProfile();
+            Accessibility.textScale = AccessibilityProfileState.ClampTextScale(scale);
+            SaveAccessibilityProfile();
+        }
+
+        public void SetKeyboardHints(bool enabled)
+        {
+            if (Accessibility == null) Accessibility = new AccessibilityProfile();
+            Accessibility.keyboardHints = enabled;
+            SaveAccessibilityProfile();
+        }
+
+        private void ApplyAccessibilityToWorld()
+        {
+            if (Accessibility == null || _world == null) return;
+            reducedMotion = Accessibility.reducedMotion;
+            lowSensory = Accessibility.lowSensory;
+            textScale = Accessibility.textScale;
+            keyboardHints = Accessibility.keyboardHints;
             _world.ReducedMotion = reducedMotion;
             _world.LowSensory = lowSensory;
-            Publish(_world.CreateSnapshot());
+        }
+
+        private void SaveAccessibilityProfile()
+        {
+            if (_accessibilityProfiles != null && Accessibility != null) _accessibilityProfiles.Save(Accessibility);
         }
 
         private void Publish(SimulationSnapshot snapshot)

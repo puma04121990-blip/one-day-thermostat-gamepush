@@ -31,6 +31,7 @@ jobs:
         run: |
           mcs -langversion:latest -out:/tmp/one-day-thermostat-core-tests.exe \
             Assets/_Project/Core/Runtime/ThermostatDomain.cs \
+            Assets/_Project/Core/Runtime/AccessibilityProfileState.cs \
             Assets/_Project/Core/Runtime/SimulationWorld.cs \
             Assets/_Project/Core/Runtime/SimulationOrchestrator.cs \
             Assets/_Project/Core/Runtime/SaveContract.cs \
