@@ -62,6 +62,8 @@ namespace OneDayThermostat.Core
         public ServiceFollowUp[] serviceFollowUps = Array.Empty<ServiceFollowUp>();
         public bool endOfDayReviewAvailable;
         public string endOfDayReviewKey = string.Empty;
+        public string[] unlockedAchievements = Array.Empty<string>();
+        public string[] pendingPlatformAchievements = Array.Empty<string>();
     }
 
     [Serializable]
@@ -140,7 +142,9 @@ namespace OneDayThermostat.Core
                     unresolvedCosts = world.Archive.UnresolvedCosts.ToArray(),
                     serviceFollowUps = world.Archive.ServiceFollowUps.Select(x => x.Clone()).ToArray(),
                     endOfDayReviewAvailable = world.Archive.EndOfDayReviewAvailable,
-                    endOfDayReviewKey = world.Archive.EndOfDayReviewKey
+                    endOfDayReviewKey = world.Archive.EndOfDayReviewKey,
+                    unlockedAchievements = world.Archive.UnlockedAchievements.ToArray(),
+                    pendingPlatformAchievements = world.Archive.PendingPlatformAchievements.ToArray()
                 },
                 logCursor = new CommandLogCursorDTO { lastCommittedTick = world.Tick, committedCount = 0 }
             };
@@ -180,6 +184,8 @@ namespace OneDayThermostat.Core
             world.Archive.ServiceFollowUps.AddRange((root.archive.serviceFollowUps ?? Array.Empty<ServiceFollowUp>()).Select(x => x.Clone()));
             world.Archive.EndOfDayReviewAvailable = root.archive.endOfDayReviewAvailable;
             world.Archive.EndOfDayReviewKey = root.archive.endOfDayReviewKey;
+            foreach (var achievement in root.archive.unlockedAchievements ?? Array.Empty<string>()) world.Archive.UnlockedAchievements.Add(achievement);
+            world.Archive.PendingPlatformAchievements.AddRange(root.archive.pendingPlatformAchievements ?? Array.Empty<string>());
             return world;
         }
 

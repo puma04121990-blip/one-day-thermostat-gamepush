@@ -25,6 +25,8 @@
 | Platform pause parity | `GamePlatformBootstrap` + `Time.deltaTime` driver | WebGL pause/resume pass | No authoritative tick advances under platform pause. |
 | Non-colour accessibility | Sensor atlas, captions, labels, low-sensory toggle | Manual accessibility run | Critical cue readable with caption only. |
 | Local-first GamePush sync | `IGamePlatform`, `ProgressSyncController` | Mock/offline test | Cloud failure cannot lose local state. |
+| Achievement progression | `AchievementCatalog`, `AchievementProgressionSystem`, Archive pending queue | Core trigger/uniqueness/persistence smoke test | Unlock отражает наблюдаемый след, не даёт power и не зависит от сети. |
+| Achievement dispatch lifecycle | `GamePlatformBootstrap`, `ProgressSyncController`, achievement strip | Unity/GamePush ready/offline manual pass | Local checkpoint precedes dispatch; pending tag не удаляется без remote confirmation. |
 | Consent analytics | `IGamePlatform.Track` gate | Platform mock | No event before consent/after revoke. |
 | No monetization pressure | `gamepush.settings.example.json`, decisions | Dashboard/manual review | Ads/payments/leaderboard disabled. |
 | Asset provenance | `ASSET_MANIFEST.md` | Release artifact review | No unlicensed/duplicated asset. |
