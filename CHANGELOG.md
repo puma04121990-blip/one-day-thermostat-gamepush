@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Связная three-chain кампания: «Порог Аркадия» → «Серебряный коридор» → «Ночной возврат», с recoverable day-complete baseline.
+- Сохраняемые поля `CampaignIndex` и `LastOutcomeKey`, динамические routes/Journal/captions в runtime-витрине.
+- Детерминированная проверка полной последовательности, Archive outcomes и save round-trip кампании.
+
 ### Planned
 
 | Область | Следующий обязательный шаг |

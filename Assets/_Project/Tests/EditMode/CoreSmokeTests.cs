@@ -13,6 +13,7 @@ namespace OneDayThermostat.Tests
                 DeterministicRouteOutcome();
                 PolicyGovernorBlocksUnsafePulse();
                 SaveMapperRoundTripPreservesAuthority();
+                CampaignProgressionReachesStagedReturnBaseline();
                 CanonicalScenarioCatalogMeetsFairnessContract();
                 Console.WriteLine("CORE_SMOKE_TESTS: PASS");
                 return 0;
@@ -76,6 +77,42 @@ namespace OneDayThermostat.Tests
             Assert(restored.Tick == world.Tick, "save round-trip should preserve simulation tick");
             Assert(restored.Route("route.quiet_middle").Openness == world.Route("route.quiet_middle").Openness, "save round-trip should preserve committed route");
             Assert(restored.Event.Phase == world.Event.Phase, "save round-trip should preserve event phase");
+            Assert(restored.Event.CampaignIndex == world.Event.CampaignIndex, "save round-trip should preserve campaign index");
+            Assert(restored.Event.LastOutcomeKey == world.Event.LastOutcomeKey, "save round-trip should preserve the player-facing event outcome");
+        }
+
+        private static void CampaignProgressionReachesStagedReturnBaseline()
+        {
+            var world = SimulationWorld.CreatePrologue(31);
+            var orchestrator = new SimulationOrchestrator();
+
+            Step(world, orchestrator, 5);
+            SetRoute(world, orchestrator, "route.quiet_middle", .56f);
+            Step(world, orchestrator, 16);
+            Assert(world.Event.ActiveChainId == "event.silver_corridor", "careful threshold route should advance to silver corridor");
+            Assert(world.Event.Phase == EventPhase.Warning || world.Event.Phase == EventPhase.Foreshadow, "silver corridor should begin through visible foreshadow/warning state");
+
+            SetRoute(world, orchestrator, "route.drain_quiet", .56f);
+            Step(world, orchestrator, 18);
+            Assert(world.Event.ActiveChainId == "event.blackout_return", "careful drain route should advance to staged blackout return");
+
+            SetRoute(world, orchestrator, "route.quiet_middle", .56f);
+            Step(world, orchestrator, 20);
+            Assert(world.Event.Phase == EventPhase.Cooldown, "staged return should finish in a recoverable day-complete baseline");
+            Assert(world.Archive.UnlockedEntries.Contains("archive.threshold_route"), "threshold aftermath should be archived");
+            Assert(world.Archive.UnlockedEntries.Contains("archive.silver_corridor"), "silver corridor aftermath should be archived");
+            Assert(world.Archive.UnlockedEntries.Contains("archive.staged_return"), "staged return aftermath should be archived");
+            Assert(world.Archive.UnlockedEntries.Contains("archive.day_complete"), "complete day should create a reflective archive entry");
+        }
+
+        private static void SetRoute(SimulationWorld world, SimulationOrchestrator orchestrator, string routeId, float openness)
+        {
+            orchestrator.Enqueue(world, new SimulationCommand { Kind = CommandKind.SetRoute, TargetId = routeId, Value = openness, Source = "test" });
+        }
+
+        private static void Step(SimulationWorld world, SimulationOrchestrator orchestrator, int count)
+        {
+            for (var index = 0; index < count; index++) orchestrator.Step(world);
         }
 
         private static void Assert(bool condition, string message)

@@ -22,6 +22,8 @@ namespace OneDayThermostat.Presentation.UI
         private Text _caption;
         private Text _policy;
         private Text _archive;
+        private Button _routeA;
+        private Button _routeB;
         private Image _sensorWash;
         private Toggle _reducedMotion;
         private Toggle _lowSensory;
@@ -84,10 +86,10 @@ namespace OneDayThermostat.Presentation.UI
             var lowerPanel = CreatePanel(canvasRoot.transform, "Routes", _slate);
             Stretch(lowerPanel, 0, 0, 1, 0, 356, 24, -28, 170);
             CreateText(lowerPanel, "RouteHeading", "МАРШРУТ У ПОРОГА", 16, _cyan, TextAnchor.UpperLeft, new Vector2(18, -14), new Vector2(-18, -40));
-            var direct = CreateButton(lowerPanel, "DirectRoute", "НИЖНИЙ: быстрее · резонанс ветви 26", () => _driver.SetRoute("route.direct_lower", .72f));
-            Stretch(direct.GetComponent<RectTransform>(), 0, 0, .50f, 1, 18, 18, -8, -50);
-            var quiet = CreateButton(lowerPanel, "QuietRoute", "СРЕДНИЙ: тише · медленнее", () => _driver.SetRoute("route.quiet_middle", .48f));
-            Stretch(quiet.GetComponent<RectTransform>(), .50f, 0, 1, 1, 8, 18, -18, -50);
+            _routeA = CreateButton(lowerPanel, "PrimaryRoute", "НИЖНИЙ: быстрее · резонанс ветви 26", CommitPrimaryRoute);
+            Stretch(_routeA.GetComponent<RectTransform>(), 0, 0, .50f, 1, 18, 18, -8, -50);
+            _routeB = CreateButton(lowerPanel, "SecondaryRoute", "СРЕДНИЙ: тише · медленнее", CommitSecondaryRoute);
+            Stretch(_routeB.GetComponent<RectTransform>(), .50f, 0, 1, 1, 8, 18, -18, -50);
 
             var rightPanel = CreatePanel(canvasRoot.transform, "Diagnostics", _slate);
             Stretch(rightPanel, 1, 0, 1, 1, -408, 200, -28, -130);
@@ -115,7 +117,7 @@ namespace OneDayThermostat.Presentation.UI
         private void Render(SimulationSnapshot snapshot)
         {
             if (snapshot == null || _status == null) return;
-            _status.text = $"Т‑3 · {SensorLabel(_sensor)} · Фаза: {PhaseLabel(snapshot.Event.Phase)} · тик {snapshot.Tick}";
+            _status.text = $"Т‑3 · {ChainTitle(snapshot.Event.ActiveChainId)} · {SensorLabel(_sensor)} · Фаза: {PhaseLabel(snapshot.Event.Phase)} · тик {snapshot.Tick}";
             _diagnostics.text = snapshot.Reasons.Count == 0
                 ? "Причины: ожидание материального следа."
                 : "Причины:\n" + string.Join("\n", snapshot.Reasons.Take(2).Select(x => "• " + LocalizeReason(x.Key)));
@@ -127,8 +129,51 @@ namespace OneDayThermostat.Presentation.UI
                 _sensorWash.color = wash;
             }
             _archive.text = snapshot.Archive.UnlockedEntries.Count == 0
-                ? "АРХИВ: ещё нет записей"
-                : "АРХИВ: " + string.Join(" · ", snapshot.Archive.UnlockedEntries.Take(2).Select(ArchiveLabel));
+                ? "ЖУРНАЛ: наблюдение началось; след ещё не завершён."
+                : "ЖУРНАЛ: " + string.Join(" · ", snapshot.Archive.UnlockedEntries.Take(3).Select(ArchiveLabel)) + (string.IsNullOrWhiteSpace(snapshot.Event.LastOutcomeKey) ? string.Empty : "\nПоследствие: " + OutcomeLabel(snapshot.Event.LastOutcomeKey));
+            UpdateRouteChoices(snapshot);
+        }
+
+        private void CommitPrimaryRoute()
+        {
+            var chain = _driver.CurrentSnapshot.Event.ActiveChainId;
+            if (chain == "event.silver_corridor") _driver.SetRoute("route.drain_quiet", .56f);
+            else if (chain == "event.blackout_return") _driver.SetRoute("route.quiet_middle", .56f);
+            else _driver.SetRoute("route.direct_lower", .72f);
+        }
+
+        private void CommitSecondaryRoute()
+        {
+            var chain = _driver.CurrentSnapshot.Event.ActiveChainId;
+            if (chain == "event.silver_corridor") _driver.SetRoute("route.direct_lower", .68f);
+            else if (chain == "event.blackout_return") _driver.SetRoute("route.direct_lower", .68f);
+            else _driver.SetRoute("route.quiet_middle", .56f);
+        }
+
+        private void UpdateRouteChoices(SimulationSnapshot snapshot)
+        {
+            if (_routeA == null || _routeB == null) return;
+            if (snapshot.Event.ActiveChainId == "event.silver_corridor")
+            {
+                SetRouteButtonLabel(_routeA, "ДРЕНАЖ: разделить влагу · медленнее");
+                SetRouteButtonLabel(_routeB, "ОБМЕН: быстрее · очередь и шум");
+            }
+            else if (snapshot.Event.ActiveChainId == "event.blackout_return")
+            {
+                SetRouteButtonLabel(_routeA, "ПОЭТАПНО: вернуть контуры · медленнее");
+                SetRouteButtonLabel(_routeB, "СРАЗУ: быстрый возврат · второй пик");
+            }
+            else
+            {
+                SetRouteButtonLabel(_routeA, "НИЖНИЙ: быстрее · резонанс ветви 26");
+                SetRouteButtonLabel(_routeB, "СРЕДНИЙ: тише · медленнее");
+            }
+        }
+
+        private static void SetRouteButtonLabel(Button button, string value)
+        {
+            var label = button.GetComponentInChildren<Text>();
+            if (label != null) label.text = value;
         }
 
         private void SelectSensor(SensorMode sensor)
@@ -166,6 +211,11 @@ namespace OneDayThermostat.Presentation.UI
             return sensor == SensorMode.Heat ? new Color(.89f, .54f, .18f) : sensor == SensorMode.Air ? new Color(.55f, .84f, .91f) : sensor == SensorMode.Vibration ? new Color(.71f, .37f, .20f) : sensor == SensorMode.Moisture ? new Color(.75f, .85f, .88f) : sensor == SensorMode.Network ? new Color(.42f, .74f, .84f) : new Color(.76f, .64f, .40f);
         }
 
+        private static string ChainTitle(string chain)
+        {
+            return chain == "event.silver_corridor" ? "СЕРЕБРЯНЫЙ КОРИДОР" : chain == "event.blackout_return" ? "НОЧНОЙ ВОЗВРАТ" : chain == "prologue.open_door" ? "ПОРОГ АРКАДИЯ" : "ДОМ В ПАУЗЕ";
+        }
+
         private static string SensorLabel(SensorMode sensor)
         {
             return sensor == SensorMode.Heat ? "ТЕПЛО" : sensor == SensorMode.Air ? "ВОЗДУХ" : sensor == SensorMode.Vibration ? "ВИБРАЦИЯ" : sensor == SensorMode.Moisture ? "ВЛАГА" : sensor == SensorMode.Network ? "СЕТЬ" : "ПОВЕРХНОСТЬ";
@@ -183,7 +233,9 @@ namespace OneDayThermostat.Presentation.UI
 
         private static string CaptionFor(SimulationSnapshot snapshot, SensorMode sensor)
         {
-            if (snapshot.LowSensory) return "Подпись low-sensory: у порога холоднее, а маршрут меняет цену ветви и тихого окна.";
+            if (snapshot.LowSensory) return snapshot.Event.ActiveChainId == "event.silver_corridor" ? "Подпись low-sensory: влага остаётся в кухонном контуре; дренаж меняет цену времени." : snapshot.Event.ActiveChainId == "event.blackout_return" ? "Подпись low-sensory: сеть возвращается по контурам; быстрый маршрут несёт второй пик." : "Подпись low-sensory: у порога холоднее, а маршрут меняет цену ветви и тихого окна.";
+            if (snapshot.Event.ActiveChainId == "event.silver_corridor") return sensor == SensorMode.Moisture ? "Подпись: серебряный след держится дольше температуры." : "Подпись: дренаж отмечает лишний удар; маршрут отделяет влагу от спешки.";
+            if (snapshot.Event.ActiveChainId == "event.blackout_return") return sensor == SensorMode.Network ? "Подпись: сетевой ритм вернулся; контуры просят порядка." : "Подпись: поверхность держит резерв, пока сеть не возвращается целиком.";
             return sensor == SensorMode.Heat ? "Подпись: холод входит через порог; янтарный поток отвечает из нижнего стояка." : sensor == SensorMode.Air ? "Подпись: стрелки показывают направление, а не силу в цифрах." : sensor == SensorMode.Vibration ? "Подпись: сегменты ветви 26 предупреждают о старте и остановке." : sensor == SensorMode.Moisture ? "Подпись: серебряный след держится дольше температуры." : sensor == SensorMode.Network ? "Подпись: сеть показывает очередь, не состояние людей." : "Подпись: поверхность помнит свет и холод дольше воздуха.";
         }
 
@@ -194,7 +246,12 @@ namespace OneDayThermostat.Presentation.UI
 
         private static string ArchiveLabel(string key)
         {
-            return key == "archive.first_flow" ? "первый поток" : key == "archive.threshold_route" ? "порог" : key == "archive.quiet_route" ? "тихий маршрут" : key;
+            return key == "archive.first_flow" ? "первый поток" : key == "archive.threshold_route" ? "порог" : key == "archive.quiet_route" ? "тихий маршрут" : key == "archive.silver_corridor" ? "серебряный коридор" : key == "archive.staged_return" ? "поэтапный возврат" : key == "archive.day_complete" ? "день собран" : key;
+        }
+
+        private static string OutcomeLabel(string key)
+        {
+            return key == "cost.branch_26_resonance" ? "ветви 26 понадобится окно восстановления" : key == "cost.kitchen_queue" ? "кухонный контур сохранил очередь" : key == "cost.second_network_peak" ? "сеть оставила след второго пика" : key == "baseline.day_complete" ? "дом получил восстанавливаемый ночной baseline" : ArchiveLabel(key);
         }
 
         private static void EnsureEventSystem()

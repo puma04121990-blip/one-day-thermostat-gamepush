@@ -86,7 +86,7 @@ mono /tmp/one-day-thermostat-core-tests.exe
 
 Ни один значимый сигнал не должен существовать только в цвете, звуке или движении: обязательны label, pattern/shape, caption и canonical text. Low-sensory выключает несущественные motion/слои звука, но не удаляет предвестник или решение. Любая automation rule требует `WHEN / IF / THEN / UNTIL / SHOW`; Preview использует тот же evaluator, что и commit, а Governor обязан объяснить блок и предложить безопасную альтернативу.
 
-Полный checklist, миграции, тесты, content schema и Definition of Done перечислены в [`Docs/`](Docs/). Правила CI и статус серверной защиты основной ветки описаны в [`Docs/GITHUB_GOVERNANCE.md`](Docs/GITHUB_GOVERNANCE.md). Неподтверждённые метрики, коммерческие ожидания и pitches из исходной документации не трактуются как фактические обещания продукта.
+Полный checklist, миграции, тесты, content schema и Definition of Done перечислены в [`Docs/`](Docs/). Сценарный маршрут, player-facing цены и ожидаемый новый baseline описаны в [`Docs/VERTICAL_SLICE.md`](Docs/VERTICAL_SLICE.md). Правила CI и статус серверной защиты основной ветки описаны в [`Docs/GITHUB_GOVERNANCE.md`](Docs/GITHUB_GOVERNANCE.md). Неподтверждённые метрики, коммерческие ожидания и pitches из исходной документации не трактуются как фактические обещания продукта.
 
 ## Лицензирование и секреты
 
