@@ -1,0 +1,21 @@
+{
+  "instructions": "Copy this file to gamepush.local.json only on your workstation. Configure real Project ID and Public Token through the official GamePush Unity plugin settings. Never commit real platform credentials.",
+  "projectId": "REPLACE_IN_GAMEPUSH_DASHBOARD",
+  "publicToken": "REPLACE_IN_GAMEPUSH_DASHBOARD",
+  "scriptingDefine": "GAMEPUSH_SDK",
+  "cloudProgressKey": "one_day_thermostat_slot_00_v1",
+  "enabledModules": [
+    "initialization",
+    "game_lifecycle",
+    "storage",
+    "achievements",
+    "analytics_after_consent",
+    "fullscreen"
+  ],
+  "disabledModulesForInitialRelease": [
+    "interstitial_ads",
+    "rewarded_ads",
+    "payments",
+    "leaderboards"
+  ]
+}

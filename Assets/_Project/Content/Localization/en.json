@@ -1,0 +1,30 @@
+{
+  "locale": "en-US",
+  "entries": {
+    "reason.external_air_at_threshold": "outside air is holding at the threshold",
+    "reason.start_stop": "branch 26 is cycling on and off",
+    "reason.quiet_window": "the route crosses a quiet window",
+    "reason.temperature_delta": "the riser-to-threshold difference has widened",
+    "reason.moisture_residual": "moisture has not left the circuit",
+    "reason.kitchen_queue": "the kitchen rhythm is collecting a queue",
+    "reason.network_queue": "the network is carrying accumulated demand",
+    "reason.surface_memory": "the surface is still holding earlier heat",
+    "governor.protective_lockout": "the component is in a protective state and will not take a pulse",
+    "policy.alternative.recover_or_isolate": "create a recovery window or isolate the branch first",
+    "policy.awaiting_context": "the policy is waiting for observable context",
+    "policy.stop_condition_met": "the stop condition is already met",
+    "policy.surface_memory.show": "the surface is holding heat; a soft route will reduce the next peak",
+    "policy.surface_memory.cost.slower_response": "cost: the room will respond more slowly",
+    "route.direct.benefit.fast_threshold_warmth": "warm the threshold sooner",
+    "route.direct.cost.branch_26_resonance": "cost: branch 26 will resonate longer",
+    "route.quiet.benefit.preserve_quiet_window": "preserve the quiet window",
+    "route.quiet.cost.slower_threshold_recovery": "cost: the threshold will recover more slowly",
+    "caption.cold_rises_from_entrance": "cold enters through the threshold",
+    "caption.riser_tone_shifts": "the riser tone shifts",
+    "caption.moisture_remains_after_temperature": "moisture remains after the air settles",
+    "caption.drain_marks_an_extra_beat": "the drain marks one extra beat",
+    "caption.branch_clicks_out_of_pair": "the branch clicks out of pair",
+    "caption.west_wall_keeps_day_heat": "the west wall holds daytime heat",
+    "caption.network_rhythm_falls_away": "the network rhythm falls away"
+  }
+}

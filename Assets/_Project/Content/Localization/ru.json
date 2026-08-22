@@ -1,0 +1,30 @@
+{
+  "locale": "ru-RU",
+  "entries": {
+    "reason.external_air_at_threshold": "у порога держится внешний воздух",
+    "reason.start_stop": "ветвь 26 часто стартует и останавливается",
+    "reason.quiet_window": "маршрут пересекает тихое окно",
+    "reason.temperature_delta": "между стояком и порогом вырос перепад",
+    "reason.moisture_residual": "влага не ушла из контура",
+    "reason.kitchen_queue": "кухонный ритм собирает очередь",
+    "reason.network_queue": "сеть несёт накопленную очередь",
+    "reason.surface_memory": "поверхность ещё держит прошлое тепло",
+    "governor.protective_lockout": "защитный режим компонента не принимает импульс",
+    "policy.alternative.recover_or_isolate": "сначала создайте окно восстановления или изолируйте ветвь",
+    "policy.awaiting_context": "правило ждёт наблюдаемого контекста",
+    "policy.stop_condition_met": "стоп-условие уже выполнено",
+    "policy.surface_memory.show": "поверхность держит тепло; мягкий маршрут снизит следующий пик",
+    "policy.surface_memory.cost.slower_response": "цена: помещение ответит медленнее",
+    "route.direct.benefit.fast_threshold_warmth": "быстрее согреть порог",
+    "route.direct.cost.branch_26_resonance": "цена: ветвь 26 будет слышна дольше",
+    "route.quiet.benefit.preserve_quiet_window": "сохранить тихое окно",
+    "route.quiet.cost.slower_threshold_recovery": "цена: порог восстановится медленнее",
+    "caption.cold_rises_from_entrance": "холод входит от порога",
+    "caption.riser_tone_shifts": "тон стояка сдвинулся",
+    "caption.moisture_remains_after_temperature": "влага остаётся после того, как воздух успокаивается",
+    "caption.drain_marks_an_extra_beat": "дренаж отмечает лишний удар",
+    "caption.branch_clicks_out_of_pair": "ветвь щёлкает не парой",
+    "caption.west_wall_keeps_day_heat": "западная стена удерживает дневное тепло",
+    "caption.network_rhythm_falls_away": "сетевой ритм уходит в тишину"
+  }
+}
