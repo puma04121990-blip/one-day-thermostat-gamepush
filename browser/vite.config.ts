@@ -219,6 +219,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/phaser")) return "phaser-engine";
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "react-core";
+        },
+      },
+    },
   },
   server: {
     port: 3000,

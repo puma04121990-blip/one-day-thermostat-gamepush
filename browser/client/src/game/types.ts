@@ -32,6 +32,8 @@ export interface RouteOption { id: RouteKind; title: string; label: string; bene
 export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service" | "achievement"; }
 
 export interface GameState {
+  schemaVersion: number;
+  contentVersion: string;
   started: boolean;
   phase: EventPhase;
   chainIndex: number;

@@ -11,6 +11,7 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
 export const EMPTY_ACHIEVEMENTS: AchievementState = { unlocked: [], pendingPlatformTags: [] };
 
 export function achievementDefinition(id: string) { return ACHIEVEMENT_CATALOG.find((definition) => definition.id === id); }
+export function isKnownAchievementId(id: string) { return Boolean(achievementDefinition(id)); }
 
 export function isAchievementTriggered(state: GameState, definition: AchievementDefinition) {
   if (definition.trigger === "archive") return state.archive.some((entry) => entry.title === definition.triggerKey);
