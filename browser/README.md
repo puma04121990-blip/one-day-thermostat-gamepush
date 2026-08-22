@@ -26,6 +26,8 @@ pnpm build
 
 Локальные achievements появляются только от fixed-tick Archive/review/service фактов, не дают power и сохраняют pending platform mirror tags до подключения настоящего GamePush browser SDK. Полный контракт: [`ACHIEVEMENTS.md`](ACHIEVEMENTS.md). Клавиша `A` открывает их в Archive.
 
+Browser shell теперь отделён от Phaser engine: canvas runtime загружается только после явного старта наблюдения. Local saves имеют `schemaVersion`/`contentVersion` fallback, а GamePush boundary остаётся disabled до test project. Детали и измеренный bundle baseline: [`PERFORMANCE_AND_CONTENT_COMPATIBILITY.md`](PERFORMANCE_AND_CONTENT_COMPATIBILITY.md); условия platform activation: [`GAMEPUSH_BROWSER_ADAPTER.md`](GAMEPUSH_BROWSER_ADAPTER.md).
+
 | Слой | Технология | Ответственность |
 |---|---|---|
 | Browser shell | React + TypeScript | HTML controls, onboarding, Journal, keyboard accessibility, preferences. |

@@ -1,8 +1,7 @@
 // Design: Тихая технография — лента наблюдений слева, материальный cutaway справа, честные маршруты у нижнего края.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
 import { achievementDefinition } from "@/game/AchievementCatalog";
-import { PhaserThermostat } from "@/components/PhaserThermostat";
 import { entriesFor } from "@/game/ConfigurationCatalog";
 import { serviceTraceKey } from "@/game/ServiceCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
@@ -11,6 +10,7 @@ import type { ConfigurationChannel, ConfigurationPreview, GameState, RouteKind }
 const LOGO = "/manus-storage/thermostat-route-mark_4292ba1f.png";
 const JOURNAL = "/manus-storage/thermostat-journal-backdrop_cb648cce.png";
 const ATLAS = "/manus-storage/thermostat-sensor-atlas_4ee06309.png";
+const PhaserThermostat = lazy(() => import("@/components/PhaserThermostat").then((module) => ({ default: module.PhaserThermostat })));
 
 const settingsKey = "one-day-thermostat.phaser.profile.v1";
 type Profile = { reducedMotion: boolean; lowSensory: boolean; textScale: number };
@@ -83,7 +83,7 @@ export default function Home() {
   return (
     <main className={`thermostat-shell ${profile.lowSensory ? "low-sensory" : ""} ${profile.reducedMotion ? "reduce-motion" : ""}`} style={{ fontSize: `${profile.textScale}em` }}>
       <section className="game-stage" aria-label="Срез дома и материальные маршруты">
-        <PhaserThermostat simulation={simulation} onState={receiveState} reducedMotion={profile.reducedMotion} />
+        {state.started && <Suspense fallback={<div className="canvas-loading" aria-hidden="true" />}><PhaserThermostat simulation={simulation} onState={receiveState} reducedMotion={profile.reducedMotion} /></Suspense>}
         <div className="grain" />
         <div className="copper-route-map" aria-hidden="true"><span className="route-node node-a" /><span className="route-node node-b" /><span className="route-node node-c" /><span className="route-tag">МАРШРУТ / 03</span></div>
 

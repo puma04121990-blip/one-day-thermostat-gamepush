@@ -1,6 +1,7 @@
 // Design: Тихая технография — only this fixed-tick model mutates routes, configuration and material service tasks; presentation cannot bypass it.
 import { DEFAULT_CONFIGURATION, findConfiguration, previewConfiguration } from "./ConfigurationCatalog";
 import { ACHIEVEMENT_CATALOG, EMPTY_ACHIEVEMENTS, isAchievementTriggered } from "./AchievementCatalog";
+import { CONTENT_VERSION, migrateSavedState, SAVE_SCHEMA_VERSION } from "./ContentContract";
 import { createServiceTask } from "./ServiceCatalog";
 import type { ConfigurationChannel, ConfigurationPreview, EventPhase, GameState, JournalEntry, RouteKind, RouteOption } from "./types";
 
@@ -72,7 +73,7 @@ export class ThermostatSimulation {
 
   private createInitial(): GameState {
     const chain = CHAINS[0];
-    return { started: false, phase: "prologue", chainIndex: 0, tick: 0, chainTitle: chain.title, trace: chain.trace, caption: chain.caption, options: [], archive: [], unresolved: [], configuration: newConfiguration(), service: newService(), achievements: newAchievements(), metrics: { air: .34, moisture: .3, surface: .48, branch: .36 }, dayComplete: false };
+    return { schemaVersion: SAVE_SCHEMA_VERSION, contentVersion: CONTENT_VERSION, started: false, phase: "prologue", chainIndex: 0, tick: 0, chainTitle: chain.title, trace: chain.trace, caption: chain.caption, options: [], archive: [], unresolved: [], configuration: newConfiguration(), service: newService(), achievements: newAchievements(), metrics: { air: .34, moisture: .3, surface: .48, branch: .36 }, dayComplete: false };
   }
 
   private step() {
@@ -169,10 +170,13 @@ export class ThermostatSimulation {
   private restore() {
     try {
       const raw = localStorage.getItem(SAVE_KEY); if (!raw) return;
-      const restored = JSON.parse(raw) as GameState;
-      if (typeof restored.tick !== "number" || typeof restored.chainIndex !== "number" || !Array.isArray(restored.archive)) return;
+      const migration = migrateSavedState(JSON.parse(raw));
+      if (!migration) return;
+      const restored = migration.state;
       const legacyConfiguration = restored.configuration ?? newConfiguration(); const legacyService = restored.service ?? newService(); const legacyAchievements = restored.achievements ?? newAchievements();
       this.state = { ...restored, configuration: { ...newConfiguration(), ...legacyConfiguration, log: Array.isArray(legacyConfiguration.log) ? legacyConfiguration.log : [] }, service: { ...newService(), ...legacyService, tasks: Array.isArray(legacyService.tasks) ? legacyService.tasks : [], unresolvedReasons: Array.isArray(legacyService.unresolvedReasons) ? legacyService.unresolvedReasons : [], review: legacyService.review ?? { available: false } }, achievements: { ...newAchievements(), ...legacyAchievements, unlocked: Array.isArray(legacyAchievements.unlocked) ? legacyAchievements.unlocked : [], pendingPlatformTags: Array.isArray(legacyAchievements.pendingPlatformTags) ? legacyAchievements.pendingPlatformTags : [] } };
+      if (migration.notes.length) this.append("trace", "Контент обновлён", migration.notes.join(" "));
+      this.persist();
     } catch { /* Corrupt local data safely falls back to a new day. */ }
   }
 }

@@ -10,6 +10,7 @@ const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
 };
 
 export function serviceTemplateFor(reasonId: string) { return SERVICE_TEMPLATES[reasonId]; }
+export function isKnownServiceTaskId(taskId: string) { return Object.values(SERVICE_TEMPLATES).some((template) => template.id === taskId); }
 
 export function createServiceTask(reasonId: string, tick: number): ServiceTask | undefined {
   const template = serviceTemplateFor(reasonId);

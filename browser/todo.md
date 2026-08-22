@@ -23,6 +23,17 @@
 - [x] Verify the direct-route duplicate trace case produces no browser console key warning.
 - [ ] Run tests, TypeScript, production build and merge the fix through GitHub.
 
+## Browser performance, content compatibility and GamePush preparation
+
+- [x] Measure current production chunk sizes and identify initial-load dependencies.
+- [x] Split Phaser and nonessential sheets so initial UI loads before gameplay engine and heavy panels.
+- [x] Verify lazy UI paths retain keyboard accessibility and never duplicate Phaser instances.
+- [x] Add a content schema/version contract to saves with deterministic migration and safe fallback when authored IDs disappear.
+- [x] Cover old save, future save and missing content ID paths in Vitest.
+- [x] Add a local-first GamePush browser adapter interface with disabled/default implementation and no committed credentials.
+- [x] Document the exact test-project inputs needed before real SDK dispatch can be enabled.
+- [x] Run performance build analysis, browser tests, Browser/Core CI and checkpoint the optimized version.
+
 ## Local-first achievements browser port
 
 - [x] Compare legacy achievement triggers, Archive contract and pending platform tag semantics.

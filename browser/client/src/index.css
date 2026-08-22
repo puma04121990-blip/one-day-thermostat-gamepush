@@ -11,6 +11,7 @@ body { margin: 0; min-width: 320px; background: #09121d; }
 
 .thermostat-shell { min-height: 100dvh; overflow: hidden; background: #09121d; }
 .game-stage { min-height: 100dvh; position: relative; isolation: isolate; overflow: hidden; background: radial-gradient(circle at 72% 38%, #1e3443 0%, #0c1827 40%, #09121d 79%); }
+.canvas-loading { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at 67% 42%, rgba(185,118,63,.09), transparent 24%); }
 .game-stage::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, rgba(9,18,29,.93) 0%, rgba(9,18,29,.54) 37%, rgba(9,18,29,.16) 72%, rgba(9,18,29,.46) 100%); }
 .grain { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .1; background-image: url('/manus-storage/thermostat-sensor-atlas_4ee06309.png'); background-size: 340px; mix-blend-mode: screen; }
 .top-bar { position: absolute; z-index: 3; inset: 0 0 auto; padding: 22px 28px; display: flex; justify-content: space-between; align-items: flex-start; }
