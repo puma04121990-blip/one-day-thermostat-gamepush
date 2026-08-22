@@ -1,0 +1,58 @@
+# Unity generated directories
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+
+# Unity generated files
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.apk
+*.aab
+*.unitypackage
+
+# Addressables and generated artifacts
+[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+[Aa]ssets/[Ss]treamingAssets/aa/
+
+# Platform credentials and local overrides
+Assets/_Project/Platform/GamePush/GamePushSettings.local.asset
+Assets/_Project/Platform/GamePush/gamepush.local.json
+*.secret
+*.secrets.json
+.env
+.env.*
+
+# Player data / test captures
+*.save.json
+*.backup.json
+*.replay.json
+*.capture.png
+*.profiler
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# CI local cache
+.ci-cache/
+
+# Build output only; source and metadata stay versioned
+WebGLBuild/
