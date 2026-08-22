@@ -24,8 +24,12 @@ export interface ServiceTask {
 export interface EndOfDayReview { available: boolean; key?: "review.day.stewardship_complete" | "review.day.service_follow_up_open"; text?: string; }
 export interface ServiceState { tasks: ServiceTask[]; unresolvedReasons: string[]; pendingTaskId?: string; credits: number; review: EndOfDayReview; }
 
+export interface AchievementDefinition { id: string; title: string; description: string; trigger: "archive" | "review" | "service"; triggerKey: string; }
+export interface UnlockedAchievement { id: string; unlockedTick: number; }
+export interface AchievementState { unlocked: UnlockedAchievement[]; pendingPlatformTags: string[]; }
+
 export interface RouteOption { id: RouteKind; title: string; label: string; benefit: string; cost: string; keyHint: string; }
-export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service"; }
+export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service" | "achievement"; }
 
 export interface GameState {
   started: boolean;
@@ -40,6 +44,7 @@ export interface GameState {
   unresolved: string[];
   configuration: ConfigurationState;
   service: ServiceState;
+  achievements: AchievementState;
   metrics: { air: number; moisture: number; surface: number; branch: number; };
   dayComplete: boolean;
 }

@@ -1,5 +1,6 @@
 // Design: Тихая технография — only this fixed-tick model mutates routes, configuration and material service tasks; presentation cannot bypass it.
 import { DEFAULT_CONFIGURATION, findConfiguration, previewConfiguration } from "./ConfigurationCatalog";
+import { ACHIEVEMENT_CATALOG, EMPTY_ACHIEVEMENTS, isAchievementTriggered } from "./AchievementCatalog";
 import { createServiceTask } from "./ServiceCatalog";
 import type { ConfigurationChannel, ConfigurationPreview, EventPhase, GameState, JournalEntry, RouteKind, RouteOption } from "./types";
 
@@ -17,6 +18,7 @@ const CHAINS: ChainDefinition[] = [
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 const newConfiguration = () => ({ ...DEFAULT_CONFIGURATION, log: [] });
 const newService = () => ({ tasks: [], unresolvedReasons: [], credits: 0, review: { available: false } });
+const newAchievements = () => ({ ...EMPTY_ACHIEVEMENTS, unlocked: [], pendingPlatformTags: [] });
 
 export class ThermostatSimulation {
   private state: GameState;
@@ -51,6 +53,15 @@ export class ThermostatSimulation {
     this.state.service.pendingTaskId = taskId; this.persist(); return true;
   }
 
+  public markPlatformAchievementSynced(achievementId: string) {
+    if (!this.state.achievements.unlocked.some((entry) => entry.id === achievementId)) return false;
+    const index = this.state.achievements.pendingPlatformTags.indexOf(achievementId);
+    if (index < 0) return false;
+    this.state.achievements.pendingPlatformTags.splice(index, 1);
+    this.persist();
+    return true;
+  }
+
   public advance(deltaMs: number) {
     if (!this.state.started || (this.state.dayComplete && !this.state.service.pendingTaskId)) return;
     this.accumulator += Math.min(250, Math.max(0, deltaMs));
@@ -61,7 +72,7 @@ export class ThermostatSimulation {
 
   private createInitial(): GameState {
     const chain = CHAINS[0];
-    return { started: false, phase: "prologue", chainIndex: 0, tick: 0, chainTitle: chain.title, trace: chain.trace, caption: chain.caption, options: [], archive: [], unresolved: [], configuration: newConfiguration(), service: newService(), metrics: { air: .34, moisture: .3, surface: .48, branch: .36 }, dayComplete: false };
+    return { started: false, phase: "prologue", chainIndex: 0, tick: 0, chainTitle: chain.title, trace: chain.trace, caption: chain.caption, options: [], archive: [], unresolved: [], configuration: newConfiguration(), service: newService(), achievements: newAchievements(), metrics: { air: .34, moisture: .3, surface: .48, branch: .36 }, dayComplete: false };
   }
 
   private step() {
@@ -76,7 +87,7 @@ export class ThermostatSimulation {
       const chain = CHAINS[this.state.chainIndex];
       this.append("archive", chain.archive, latestRoute === chain.careful.title ? chain.carefulResult : chain.directResult);
     } else if (this.state.phase === "aftermath" && this.phaseTicks >= 8) this.advanceChain();
-    this.offerEndOfDayReview(); this.persist();
+    this.offerEndOfDayReview(); this.progressAchievements(); this.persist();
   }
 
   private advanceChain() {
@@ -144,6 +155,15 @@ export class ThermostatSimulation {
     this.append("archive", "Обзор дня", text);
   }
 
+  private progressAchievements() {
+    for (const definition of ACHIEVEMENT_CATALOG) {
+      if (!isAchievementTriggered(this.state, definition) || this.state.achievements.unlocked.some((entry) => entry.id === definition.id)) continue;
+      this.state.achievements.unlocked.push({ id: definition.id, unlockedTick: this.state.tick });
+      this.state.achievements.pendingPlatformTags.push(definition.id);
+      this.append("achievement", definition.title, definition.description);
+    }
+  }
+
   private append(tone: JournalEntry["tone"], title: string, body: string) { this.state.archive.push({ tick: this.state.tick, tone, title, body }); }
   private persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* Local-first save is optional in restrictive contexts. */ } }
   private restore() {
@@ -151,8 +171,8 @@ export class ThermostatSimulation {
       const raw = localStorage.getItem(SAVE_KEY); if (!raw) return;
       const restored = JSON.parse(raw) as GameState;
       if (typeof restored.tick !== "number" || typeof restored.chainIndex !== "number" || !Array.isArray(restored.archive)) return;
-      const legacyConfiguration = restored.configuration ?? newConfiguration(); const legacyService = restored.service ?? newService();
-      this.state = { ...restored, configuration: { ...newConfiguration(), ...legacyConfiguration, log: Array.isArray(legacyConfiguration.log) ? legacyConfiguration.log : [] }, service: { ...newService(), ...legacyService, tasks: Array.isArray(legacyService.tasks) ? legacyService.tasks : [], unresolvedReasons: Array.isArray(legacyService.unresolvedReasons) ? legacyService.unresolvedReasons : [], review: legacyService.review ?? { available: false } } };
+      const legacyConfiguration = restored.configuration ?? newConfiguration(); const legacyService = restored.service ?? newService(); const legacyAchievements = restored.achievements ?? newAchievements();
+      this.state = { ...restored, configuration: { ...newConfiguration(), ...legacyConfiguration, log: Array.isArray(legacyConfiguration.log) ? legacyConfiguration.log : [] }, service: { ...newService(), ...legacyService, tasks: Array.isArray(legacyService.tasks) ? legacyService.tasks : [], unresolvedReasons: Array.isArray(legacyService.unresolvedReasons) ? legacyService.unresolvedReasons : [], review: legacyService.review ?? { available: false } }, achievements: { ...newAchievements(), ...legacyAchievements, unlocked: Array.isArray(legacyAchievements.unlocked) ? legacyAchievements.unlocked : [], pendingPlatformTags: Array.isArray(legacyAchievements.pendingPlatformTags) ? legacyAchievements.pendingPlatformTags : [] } };
     } catch { /* Corrupt local data safely falls back to a new day. */ }
   }
 }
