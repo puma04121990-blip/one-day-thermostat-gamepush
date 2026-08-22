@@ -39,7 +39,7 @@ describe("ThermostatSimulation", () => {
     const aftermath = simulation.snapshot();
     expect(aftermath.phase).toBe("aftermath");
     expect(aftermath.unresolved).toHaveLength(1);
-    expect(aftermath.archive.at(-1)?.title).toBe("Порог");
+    expect(aftermath.archive.some((entry) => entry.title === "Порог")).toBe(true);
     advanceTicks(simulation, 8);
     expect(simulation.snapshot().chainIndex).toBe(1);
     expect(simulation.snapshot().phase).toBe("prologue");
@@ -144,5 +144,40 @@ describe("ThermostatSimulation", () => {
     expect(complete.dayComplete).toBe(true);
     expect(complete.service.tasks.filter((task) => !task.resolved)).toHaveLength(3);
     expect(complete.service.review.key).toBe("review.day.service_follow_up_open");
+  });
+
+  it("unlocks archive and service achievements locally once, persists pending platform tags and permits a safe acknowledgement", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("direct");
+    advanceTicks(simulation, 6);
+    let state = simulation.snapshot();
+    expect(state.achievements.unlocked.map((entry) => entry.id)).toContain("achievement.threshold_route");
+    const task = state.service.tasks[0];
+    simulation.queueServiceRecovery(task.id);
+    advanceTicks(simulation, 1);
+    state = simulation.snapshot();
+    expect(state.achievements.unlocked.map((entry) => entry.id)).toContain("achievement.branch_rebalanced");
+    expect(state.achievements.pendingPlatformTags).toContain("achievement.branch_rebalanced");
+    advanceTicks(simulation, 2);
+    expect(simulation.snapshot().achievements.unlocked.filter((entry) => entry.id === "achievement.branch_rebalanced")).toHaveLength(1);
+    const restored = new ThermostatSimulation();
+    expect(restored.snapshot().achievements.pendingPlatformTags).toContain("achievement.threshold_route");
+    expect(restored.markPlatformAchievementSynced("achievement.threshold_route")).toBe(true);
+    expect(restored.markPlatformAchievementSynced("achievement.threshold_route")).toBe(false);
+  });
+
+  it("unlocks the quiet route achievement only after its authoritative route fact appears", () => {
+    const simulation = new ThermostatSimulation();
+    simulation.start();
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    advanceTicks(simulation, 14);
+    advanceTicks(simulation, 7);
+    simulation.chooseRoute("careful");
+    expect(simulation.snapshot().achievements.unlocked.map((entry) => entry.id)).not.toContain("achievement.quiet_route");
+    advanceTicks(simulation, 1);
+    expect(simulation.snapshot().achievements.unlocked.map((entry) => entry.id)).toContain("achievement.quiet_route");
   });
 });

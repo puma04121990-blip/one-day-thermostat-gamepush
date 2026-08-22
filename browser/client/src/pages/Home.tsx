@@ -1,6 +1,7 @@
 // Design: Тихая технография — лента наблюдений слева, материальный cutaway справа, честные маршруты у нижнего края.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Type, Wrench, X } from "lucide-react";
+import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Trophy, Type, Wrench, X } from "lucide-react";
+import { achievementDefinition } from "@/game/AchievementCatalog";
 import { PhaserThermostat } from "@/components/PhaserThermostat";
 import { entriesFor } from "@/game/ConfigurationCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
@@ -56,6 +57,7 @@ export default function Home() {
       if (event.key.toLowerCase() === "q") { simulation.chooseRoute("careful"); refresh(); }
       if (event.key.toLowerCase() === "e") { simulation.chooseRoute("direct"); refresh(); }
       if (event.key.toLowerCase() === "j") setJournalOpen((value) => !value);
+      if (event.key.toLowerCase() === "a") setJournalOpen(true);
       if (event.key.toLowerCase() === "m") setProfile((value) => ({ ...value, reducedMotion: !value.reducedMotion }));
       if (event.key.toLowerCase() === "l") setProfile((value) => ({ ...value, lowSensory: !value.lowSensory }));
       if (event.key.toLowerCase() === "c") setConfigurationOpen((value) => !value);
@@ -112,6 +114,7 @@ export default function Home() {
               </div>;
             })}
           </div>
+          <button className="achievement-strip" onClick={() => setJournalOpen(true)} aria-label="Открыть достижения в Archive"><Trophy size={16} /><span><b>{state.achievements.unlocked.length} LOCAL TRACE</b><small>{state.achievements.pendingPlatformTags.length ? `${state.achievements.pendingPlatformTags.length} ждут platform mirror` : "A · открыть Archive"}</small></span></button>
         </aside>
 
         <div className="canvas-caption"><Gauge size={15} /> <span>МАРШРУТЫ — МАТЕРИАЛЬНЫЕ; ЖИЛЬЦЫ НЕ ЯВЛЯЮТСЯ ЦЕЛЬЮ УПРАВЛЕНИЯ</span></div>
@@ -141,6 +144,7 @@ export default function Home() {
       {journalOpen && <aside className="journal-sheet" role="dialog" aria-modal="true" aria-label="Archive журнала" style={{ backgroundImage: `linear-gradient(90deg, rgba(9,18,29,.96), rgba(9,18,29,.76)), url(${JOURNAL})` }}>
         <div className="sheet-top"><div><p className="eyebrow">ARCHIVE / LOCAL</p><h2>Журнал дома</h2></div><button className="icon-button" onClick={() => setJournalOpen(false)} aria-label="Закрыть журнал"><X size={19} /></button></div>
         <p className="journal-intro">Каждая запись описывает материальный след и последствия маршрута. Она не является оценкой жильца.</p>
+        <section className="achievement-ledger" aria-label="Локальные достижения"><div className="achievement-ledger-head"><Trophy size={18} /><span><p className="eyebrow">LOCAL ACHIEVEMENTS</p><b>Следы, а не power-up</b></span></div>{state.achievements.unlocked.length ? <div className="achievement-list">{state.achievements.unlocked.map((entry) => { const definition = achievementDefinition(entry.id); return <article key={entry.id}><span>◇</span><div><b>{definition?.title ?? entry.id}</b><p>{definition?.description ?? "Локальный trace сохранён."}</p><small>Т.{String(entry.unlockedTick).padStart(3, "0")}</small></div></article>; })}</div> : <p className="empty-note">Первые локальные следы появятся после авторитетных событий дня.</p>}{state.achievements.pendingPlatformTags.length > 0 && <p className="achievement-pending">PENDING MIRROR: {state.achievements.pendingPlatformTags.length}. Теги остаются local-first до подключения реального GamePush browser SDK.</p>}</section>
         <div className="journal-list">{state.archive.length ? [...state.archive].reverse().map((entry, index) => <article key={`${entry.tick}-${index}`} className={`journal-entry ${entry.tone}`}><span>Т.{String(entry.tick).padStart(3, "0")}</span><div><b>{entry.title}</b><p>{entry.body}</p></div></article>) : <p className="empty-note">Начни наблюдение — первые следы появятся здесь.</p>}</div>
         {state.unresolved.length > 0 && <div className="service-note"><b>ВИДИМЫЕ SERVICE TRACE</b>{state.unresolved.map((item) => <p key={item}>— {item}</p>)}</div>}
       </aside>}

@@ -24,6 +24,8 @@ pnpm build
 
 В service sheet (`V`) прямой маршрут может открыть материальную задачу обслуживания. Она касается только компонента дома, применяется bounded recovery на следующем fixed tick и не превращает день в hard fail. См. [`SERVICE_FOLLOW_UP.md`](SERVICE_FOLLOW_UP.md).
 
+Локальные achievements появляются только от fixed-tick Archive/review/service фактов, не дают power и сохраняют pending platform mirror tags до подключения настоящего GamePush browser SDK. Полный контракт: [`ACHIEVEMENTS.md`](ACHIEVEMENTS.md). Клавиша `A` открывает их в Archive.
+
 | Слой | Технология | Ответственность |
 |---|---|---|
 | Browser shell | React + TypeScript | HTML controls, onboarding, Journal, keyboard accessibility, preferences. |
