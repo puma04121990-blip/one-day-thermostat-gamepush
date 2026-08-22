@@ -19,6 +19,9 @@
 - Keyboard shortcuts и uGUI focus start после onboarding; text scale controls с labelled fallback.
 - Platform pause overlay и focus-return path без catch-up ticks; pause/focus сохраняют текущий slot и accessibility profile.
 - Pure-core accessibility state и smoke coverage: bounded text scale и отсутствие влияния presentation preferences на physics/component/event outcome.
+- Authorable `ScenarioDefinitionAsset → ScenarioDefinition` bridge и строгий `IsAuthorable()` contract: boundary context, complete foreshadows, accessible route summary и resident agency.
+- `ScriptedDayFixtureAsset` и pure canonical `fixture.careful_three_chain_day`: bounded player-command sequence, Archive outcomes и recoverable day baseline без authority bypass.
+- Manifest safety расширена на scenario authoring и fixture references; CI smoke coverage включает invalid authoring contract и scripted day parity.
 
 ### Planned
 
@@ -30,6 +33,7 @@
 | Локализация | Подключить translation loader и пройти expansion/fallback audit. |
 | Доступность | Выполнить Unity device/layout matrix для keyboard/controller/touch, `85–135%` текста и persistent profile. |
 | WebGL lifecycle | В GamePush test project подтвердить pause overlay, отсутствие tick/catch-up при resume и restart persistence. |
+| Scenario authoring | В Unity создать и проверить inspector-authored Scenario/Scripted Day Fixture assets через Content Manifest и PlayMode evidence. |
 
 ## [0.1.0] — 2026-08-22
 

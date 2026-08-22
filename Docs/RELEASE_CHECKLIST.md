@@ -19,7 +19,8 @@
 | Unity EditMode | Component hysteresis, routes, event cooldown, policy preview/commit, migration fixture | Требует Unity Editor. |
 | Unity PlayMode | UI, input, auto-bootstrap, onboarding start/skip, save/load в Foreshadow/Warning/Aftermath | Требует Unity Editor. |
 | Corrupt current save | Backup загружается; evidence не уничтожается | Требует Unity Editor/fixture. |
-| All scenario definitions | 2 independent foreshadows, 2 visible routes, recovery baseline, low-sensory | Catalog validator: готово; authored SO: перед выпуском. |
+| All scenario definitions | 2 independent foreshadows, 2 visible routes, boundary context, recovery baseline, accessible summary and low-sensory | Catalog validator: готово; authored SO/manifest: Unity Editor pass required. |
+| Scripted day fixtures | Inspector fixture references valid scenario/route IDs, player commands reach documented Archive/outcome within bounded ticks | Pure canonical fixture: готово; authored asset PlayMode evidence required. |
 | Agency review | Нет command/score/diagnosis для жителя | Требует human narrative review. |
 
 ## Доступность и UX

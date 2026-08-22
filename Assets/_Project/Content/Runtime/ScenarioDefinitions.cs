@@ -44,6 +44,28 @@ namespace OneDayThermostat.Content
             reason = string.Empty;
             return true;
         }
+
+        public bool IsAuthorable(out string reason)
+        {
+            if (!IsFair(out reason)) return false;
+            if (string.IsNullOrWhiteSpace(BoundaryContextKey))
+            {
+                reason = "scenario.error.missing_boundary_context";
+                return false;
+            }
+            if (Foreshadows.Any(x => x == null || string.IsNullOrWhiteSpace(x.Id) || string.IsNullOrWhiteSpace(x.SensorModeKey) || string.IsNullOrWhiteSpace(x.CaptionKey) || string.IsNullOrWhiteSpace(x.PatternKey) || string.IsNullOrWhiteSpace(x.ConditionKey)))
+            {
+                reason = "scenario.error.incomplete_foreshadow";
+                return false;
+            }
+            if (Routes.Any(x => x == null || string.IsNullOrWhiteSpace(x.RouteId) || string.IsNullOrWhiteSpace(x.AccessibleSummaryKey) || !x.PreservesResidentAgency))
+            {
+                reason = "scenario.error.incomplete_or_non_agency_route";
+                return false;
+            }
+            reason = string.Empty;
+            return true;
+        }
     }
 
     [Serializable]

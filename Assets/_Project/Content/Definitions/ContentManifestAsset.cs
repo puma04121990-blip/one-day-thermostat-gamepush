@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OneDayThermostat.Content;
 using OneDayThermostat.Presentation.Runtime;
 using UnityEngine;
 
@@ -10,6 +11,7 @@ namespace OneDayThermostat.Content.Definitions
     public sealed class ContentManifestAsset : ScriptableObject
     {
         [SerializeField] private List<ScenarioDefinitionAsset> scenarios = new List<ScenarioDefinitionAsset>();
+        [SerializeField] private List<ScriptedDayFixtureAsset> scriptedDayFixtures = new List<ScriptedDayFixtureAsset>();
         [SerializeField] private List<FirmwareDefinitionAsset> firmware = new List<FirmwareDefinitionAsset>();
         [SerializeField] private List<ModifierDefinitionAsset> modifiers = new List<ModifierDefinitionAsset>();
 
@@ -17,8 +19,22 @@ namespace OneDayThermostat.Content.Definitions
         {
             error = string.Empty;
             if (!HaveUniqueIds(scenarios.Where(x => x != null).Select(x => x.StableId), out error)) return false;
+            if (!HaveUniqueIds(scriptedDayFixtures.Where(x => x != null).Select(x => x.StableId), out error)) return false;
             if (!HaveUniqueIds(firmware.Where(x => x != null).Select(x => x.StableId), out error)) return false;
             if (!HaveUniqueIds(modifiers.Where(x => x != null).Select(x => x.StableId), out error)) return false;
+            foreach (var scenario in scenarios)
+            {
+                if (scenario == null) { error = "content.error.unsafe_scenario"; return false; }
+                string scenarioError;
+                if (!scenario.IsSafe(out scenarioError)) { error = scenarioError; return false; }
+            }
+            var runtimeScenarios = scenarios.Where(x => x != null).Select(x => x.ToRuntimeDefinition()).ToArray();
+            foreach (var fixture in scriptedDayFixtures)
+            {
+                if (fixture == null) { error = "content.error.unsafe_fixture"; return false; }
+                string fixtureError;
+                if (!fixture.IsSafe(runtimeScenarios, out fixtureError)) { error = fixtureError; return false; }
+            }
             if (firmware.Any(x => x == null || !x.IsSafe)) { error = "content.error.unsafe_firmware"; return false; }
             if (modifiers.Any(x => x == null || !x.IsSafe)) { error = "content.error.unsafe_modifier"; return false; }
             foreach (var key in CollectSemanticKeys())
@@ -42,6 +58,16 @@ namespace OneDayThermostat.Content.Definitions
                 yield return definition.TitleKey;
                 yield return definition.EffectKey;
                 yield return definition.SingleClearCostKey;
+            }
+            foreach (var fixture in scriptedDayFixtures.Where(x => x != null))
+            {
+                var runtimeFixture = fixture.ToRuntimeFixture();
+                yield return runtimeFixture.ExpectedFinalOutcomeKey;
+                foreach (var step in runtimeFixture.Steps)
+                {
+                    yield return step.ExpectedArchiveKey;
+                    yield return step.ExpectedOutcomeKey;
+                }
             }
             foreach (var scenario in scenarios.Where(x => x != null))
             {

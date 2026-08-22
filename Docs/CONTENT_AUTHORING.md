@@ -2,7 +2,7 @@
 
 ## Сценарий сначала, текст потом
 
-Новый сценарий начинается не с реплики персонажа и не с эффекта. Сначала заполните material contract: climate profile, инфраструктурное условие, два независимых предвестника, два разных корректных маршрута, cooldown, failure baseline, Archive/service outcome и low-sensory plan. `ScenarioDefinition.IsFair()` проверяет минимальную форму, но автор обязан проверить смысл: два маршрута должны не просто отличаться числом, а давать разные понятные цены/ритмы.
+Новый сценарий начинается не с реплики персонажа и не с эффекта. Сначала заполните material contract: climate profile, infrastructure condition, **boundary context**, два независимых предвестника, два разных корректных маршрута, cooldown, failure baseline, Archive/service outcome и low-sensory plan. `ScenarioDefinition.IsFair()` проверяет минимальную форму canonical runtime content; для Unity authored asset обязательна более строгая `IsAuthorable()`: все boundary/foreshadow/pattern/caption/accessible-summary поля должны быть заполнены. Автор всё равно проверяет смысл: два маршрута должны не просто отличаться числом, а давать разные понятные цены и ритмы.
 
 | Поле | Пример для «Серебряного коридора» |
 |---|---|
@@ -29,4 +29,4 @@ Firmware меняет только ranking, visibility или timing допус�
 
 ## Перед добавлением authored asset
 
-Добавьте stable ID, обновите localization table, asset provenance при необходимости, scenario fixture, save/migration impact и tests. Пройдите `CONTRIBUTING.md` и `ACCESSIBILITY_CHECKLIST.md`; добавьте строку в `TRACEABILITY.md`, если появляется новый тип механики или platform data.
+Добавьте stable ID, semantic keys в `ru.json`/`en.json` и их `Resources` copies, asset provenance при необходимости, scenario fixture, save/migration impact и tests. Создайте `Scripted Day Fixture`, который использует только игрок-доступные route commands и ожидает Archive/outcome в bounded tick window; подключите его в `Content Manifest`, чтобы `IsSafe()` проверил scenario/fixture references. Полный contract и канонический пример находятся в [`SCRIPTED_DAY_FIXTURES.md`](SCRIPTED_DAY_FIXTURES.md). Пройдите `CONTRIBUTING.md` и `ACCESSIBILITY_CHECKLIST.md`; добавьте строку в `TRACEABILITY.md`, если появляется новый тип механики или platform data.

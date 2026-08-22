@@ -24,7 +24,7 @@
 
 ## Автоматическая проверка
 
-`CampaignProgressionReachesStagedReturnBaseline` выполняет seeded route: quiet threshold → quiet drain → staged return. Он проверяет переходы между цепочками, четыре Archive entries и достижение recoverable `Cooldown` baseline. В `SaveMapperRoundTripPreservesAuthority` дополнительно проверяются `CampaignIndex` и `LastOutcomeKey`, поэтому mid-campaign save/load не теряет player-facing историю.
+`CampaignProgressionReachesStagedReturnBaseline` остаётся базовой защитой переходов кампании. Дополнительно `ScriptedDayFixtureMatchesAuthoritativeSequence` выполняет authorable `fixture.careful_three_chain_day`: ждёт естественный Warning, посылает обычные route commands, проверяет bounded Aftermath, ожидаемые Archive outcomes и recoverable `Cooldown` baseline. Fixture не пишет состояние мира напрямую и поэтому фиксирует тот же player-facing путь. В `SaveMapperRoundTripPreservesAuthority` дополнительно проверяются `CampaignIndex` и `LastOutcomeKey`, поэтому mid-campaign save/load не теряет player-facing историю. Полная схема находится в [`SCRIPTED_DAY_FIXTURES.md`](SCRIPTED_DAY_FIXTURES.md).
 
 ## Ручной Unity/WebGL проход
 
