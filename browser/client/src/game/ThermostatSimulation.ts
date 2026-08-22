@@ -1,5 +1,6 @@
-// Design: Тихая технография — simulation является fixed-tick источником истины; UI только читает snapshot и отправляет route intent.
-import type { EventPhase, GameState, JournalEntry, RouteKind, RouteOption } from "./types";
+// Design: Тихая технография — only this fixed-tick model commits routes and configuration; UI previews never mutate it.
+import { DEFAULT_CONFIGURATION, findConfiguration, previewConfiguration } from "./ConfigurationCatalog";
+import type { ConfigurationChannel, ConfigurationPreview, EventPhase, GameState, JournalEntry, RouteKind, RouteOption } from "./types";
 
 const SAVE_KEY = "one-day-thermostat.phaser.save.v1";
 const TICK_MS = 200;
@@ -16,49 +17,20 @@ type ChainDefinition = {
 };
 
 const CHAINS: ChainDefinition[] = [
-  {
-    title: "Порог Аркадия",
-    trace: "Внешний воздух удерживается у входного порога.",
-    caption: "Холод входит от порога. Сначала виден след, затем — маршрут.",
-    careful: { id: "careful", title: "Средний маршрут", label: "Тише для ветви", benefit: "сохранить тихое окно", cost: "порог восстановится медленнее", keyHint: "Q" },
-    direct: { id: "direct", title: "Прямой маршрут", label: "Быстрее у порога", benefit: "быстрее согреть порог", cost: "ветвь 26 будет слышна дольше", keyHint: "E" },
-    archive: "Порог",
-    carefulResult: "Средний путь оставил ветви время на восстановление.",
-    directResult: "Быстрый импульс оставил у ветви 26 видимый след обслуживания."
-  },
-  {
-    title: "Серебряный коридор",
-    trace: "Влага держится в кухонном контуре дольше, чем успокаивается воздух.",
-    caption: "Серебряный штрих у дренажа отмечает лишний ритм.",
-    careful: { id: "careful", title: "Тихий дренаж", label: "Разделить контур", benefit: "дать влаге отдельный путь", cost: "маршрут займёт больше времени", keyHint: "Q" },
-    direct: { id: "direct", title: "Прямой обмен", label: "Сменить воздух", benefit: "быстрее поменять воздух", cost: "сеть соберёт очередь", keyHint: "E" },
-    archive: "Серебряный коридор",
-    carefulResult: "Дренаж получил тихое окно и не собрал лишнюю очередь.",
-    directResult: "Ускоренный обмен оставил сеть в очереди: это service trace, не поражение."
-  },
-  {
-    title: "Ночной возврат",
-    trace: "Западная стена хранит дневное тепло, а сеть несёт накопленный ритм.",
-    caption: "Пара следов видна до решения: поверхность и сеть говорят разными языками.",
-    careful: { id: "careful", title: "Поэтапный возврат", label: "Собрать baseline", benefit: "вернуть контур по шагам", cost: "отклик будет спокойнее и дольше", keyHint: "Q" },
-    direct: { id: "direct", title: "Резкий возврат", label: "Снять пик", benefit: "быстрее снять текущий пик", cost: "сеть получит второй пик", keyHint: "E" },
-    archive: "Поэтапный возврат",
-    carefulResult: "Дом вернулся к восстанавливаемому ночному baseline.",
-    directResult: "Второй пик стал заметным service trace; день всё равно продолжается."
-  }
+  { title: "Порог Аркадия", trace: "Внешний воздух удерживается у входного порога.", caption: "Холод входит от порога. Сначала виден след, затем — маршрут.", careful: { id: "careful", title: "Средний маршрут", label: "Тише для ветви", benefit: "сохранить тихое окно", cost: "порог восстановится медленнее", keyHint: "Q" }, direct: { id: "direct", title: "Прямой маршрут", label: "Быстрее у порога", benefit: "быстрее согреть порог", cost: "ветвь 26 будет слышна дольше", keyHint: "E" }, archive: "Порог", carefulResult: "Средний путь оставил ветви время на восстановление.", directResult: "Быстрый импульс оставил у ветви 26 видимый след обслуживания." },
+  { title: "Серебряный коридор", trace: "Влага держится в кухонном контуре дольше, чем успокаивается воздух.", caption: "Серебряный штрих у дренажа отмечает лишний ритм.", careful: { id: "careful", title: "Тихий дренаж", label: "Разделить контур", benefit: "дать влаге отдельный путь", cost: "маршрут займёт больше времени", keyHint: "Q" }, direct: { id: "direct", title: "Прямой обмен", label: "Сменить воздух", benefit: "быстрее поменять воздух", cost: "сеть соберёт очередь", keyHint: "E" }, archive: "Серебряный коридор", carefulResult: "Дренаж получил тихое окно и не собрал лишнюю очередь.", directResult: "Ускоренный обмен оставил сеть в очереди: это service trace, не поражение." },
+  { title: "Ночной возврат", trace: "Западная стена хранит дневное тепло, а сеть несёт накопленный ритм.", caption: "Пара следов видна до решения: поверхность и сеть говорят разными языками.", careful: { id: "careful", title: "Поэтапный возврат", label: "Собрать baseline", benefit: "вернуть контур по шагам", cost: "отклик будет спокойнее и дольше", keyHint: "Q" }, direct: { id: "direct", title: "Резкий возврат", label: "Снять пик", benefit: "быстрее снять текущий пик", cost: "сеть получит второй пик", keyHint: "E" }, archive: "Поэтапный возврат", carefulResult: "Дом вернулся к восстанавливаемому ночному baseline.", directResult: "Второй пик стал заметным service trace; день всё равно продолжается." }
 ];
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
+const newConfiguration = () => ({ ...DEFAULT_CONFIGURATION, log: [] });
 
 export class ThermostatSimulation {
   private state: GameState;
   private accumulator = 0;
   private phaseTicks = 0;
 
-  constructor() {
-    this.state = this.createInitial();
-    this.restore();
-  }
+  constructor() { this.state = this.createInitial(); this.restore(); }
 
   public start() {
     if (this.state.started) return;
@@ -74,54 +46,47 @@ export class ThermostatSimulation {
     this.state.phase = "active";
     this.state.options = [];
     this.phaseTicks = 0;
-    this.append("route", option.title, `${option.benefit}; цена: ${option.cost}.`);
-    if (route === "direct") this.state.unresolved.push(chain.direct.cost);
+    const modifier = this.state.configuration.routeModifierId;
+    const adjustedCost = route === "direct" && modifier === "modifier.soft_open" ? "порог восстановится медленнее; импульс ветви ограничен" : option.cost;
+    this.append("route", option.title, `${option.benefit}; цена: ${adjustedCost}.`);
+    if (route === "direct") {
+      this.state.unresolved.push(modifier === "modifier.direct_boost" ? "ветвь 26 получила усиленный резонанс" : adjustedCost);
+      this.state.metrics.branch = clamp(this.state.metrics.branch + (modifier === "modifier.direct_boost" ? .12 : modifier === "modifier.soft_open" ? .025 : .07));
+    }
     this.persist();
+  }
+
+  public previewConfiguration(id: string, channel: ConfigurationChannel): ConfigurationPreview {
+    return previewConfiguration(this.state.configuration, id, channel, this.state.tick);
+  }
+
+  public queueConfiguration(preview: ConfigurationPreview) {
+    if (preview.status !== "valid" || preview.staleAtTick !== this.state.tick + 1 || !findConfiguration(preview.selectionId, preview.channel)) return false;
+    this.state.configuration.pending = { ...preview };
+    this.persist();
+    return true;
   }
 
   public advance(deltaMs: number) {
     if (!this.state.started || this.state.dayComplete) return;
     this.accumulator += Math.min(250, Math.max(0, deltaMs));
-    while (this.accumulator >= TICK_MS) {
-      this.accumulator -= TICK_MS;
-      this.step();
-    }
+    while (this.accumulator >= TICK_MS) { this.accumulator -= TICK_MS; this.step(); }
   }
 
-  public snapshot(): GameState {
-    return JSON.parse(JSON.stringify(this.state)) as GameState;
-  }
+  public snapshot(): GameState { return JSON.parse(JSON.stringify(this.state)) as GameState; }
 
-  public reset() {
-    this.state = this.createInitial();
-    this.accumulator = 0;
-    this.phaseTicks = 0;
-    this.persist();
-  }
+  public reset() { this.state = this.createInitial(); this.accumulator = 0; this.phaseTicks = 0; this.persist(); }
 
   private createInitial(): GameState {
     const chain = CHAINS[0];
-    return {
-      started: false,
-      phase: "prologue",
-      chainIndex: 0,
-      tick: 0,
-      chainTitle: chain.title,
-      trace: chain.trace,
-      caption: chain.caption,
-      options: [],
-      archive: [],
-      unresolved: [],
-      metrics: { air: 0.34, moisture: 0.3, surface: 0.48, branch: 0.36 },
-      dayComplete: false
-    };
+    return { started: false, phase: "prologue", chainIndex: 0, tick: 0, chainTitle: chain.title, trace: chain.trace, caption: chain.caption, options: [], archive: [], unresolved: [], configuration: newConfiguration(), metrics: { air: 0.34, moisture: 0.3, surface: 0.48, branch: 0.36 }, dayComplete: false };
   }
 
   private step() {
     this.state.tick += 1;
     this.phaseTicks += 1;
+    this.commitPendingConfiguration();
     this.updateMetrics();
-
     if (this.state.phase === "prologue" && this.phaseTicks >= 7) {
       this.state.phase = "warning";
       this.state.options = [CHAINS[this.state.chainIndex].careful, CHAINS[this.state.chainIndex].direct];
@@ -134,17 +99,13 @@ export class ThermostatSimulation {
       const careful = latestRoute === CHAINS[this.state.chainIndex].careful.title;
       const chain = CHAINS[this.state.chainIndex];
       this.append("archive", chain.archive, careful ? chain.carefulResult : chain.directResult);
-    } else if (this.state.phase === "aftermath" && this.phaseTicks >= 8) {
-      this.advanceChain();
-    }
+    } else if (this.state.phase === "aftermath" && this.phaseTicks >= 8) this.advanceChain();
     this.persist();
   }
 
   private advanceChain() {
     if (this.state.chainIndex >= CHAINS.length - 1) {
-      this.state.phase = "complete";
-      this.state.dayComplete = true;
-      this.state.chainTitle = "Ночной baseline собран";
+      this.state.phase = "complete"; this.state.dayComplete = true; this.state.chainTitle = "Ночной baseline собран";
       this.state.trace = "У дома есть следующий день: следы сохранены, а видимые service tasks можно завершить позднее.";
       this.state.caption = "День не заканчивается победой над кем-то. Он заканчивается новым, восстанавливаемым baseline.";
       this.append("archive", "День собран", "Archive сохранил маршрут, последствия и возможность вернуться к материальным задачам.");
@@ -152,12 +113,7 @@ export class ThermostatSimulation {
     }
     this.state.chainIndex += 1;
     const chain = CHAINS[this.state.chainIndex];
-    this.state.phase = "prologue";
-    this.state.chainTitle = chain.title;
-    this.state.trace = chain.trace;
-    this.state.caption = chain.caption;
-    this.state.options = [];
-    this.phaseTicks = 0;
+    this.state.phase = "prologue"; this.state.chainTitle = chain.title; this.state.trace = chain.trace; this.state.caption = chain.caption; this.state.options = []; this.phaseTicks = 0;
     this.append("trace", chain.title, "Новая цепочка начинается с двух наблюдаемых предвестников.");
   }
 
@@ -166,24 +122,37 @@ export class ThermostatSimulation {
     const direction = phaseModifier[this.state.phase];
     this.state.metrics.air = clamp(this.state.metrics.air + direction * (this.state.chainIndex === 0 ? 1 : -0.3));
     this.state.metrics.moisture = clamp(this.state.metrics.moisture + direction * (this.state.chainIndex === 1 ? 1.4 : -0.2));
-    this.state.metrics.surface = clamp(this.state.metrics.surface + direction * (this.state.chainIndex === 2 ? 1.1 : 0.15));
+    const firmwareSurfaceWeight = this.state.configuration.firmwareId === "firmware.surface_memory" ? 1.2 : 1;
+    const sensorSurfaceWeight = this.state.configuration.sensorModifierId === "modifier.early_contour" ? 1.1 : 1;
+    this.state.metrics.surface = clamp(this.state.metrics.surface + direction * (this.state.chainIndex === 2 ? 1.1 : 0.15) * firmwareSurfaceWeight * sensorSurfaceWeight);
     this.state.metrics.branch = clamp(this.state.metrics.branch + direction * (this.state.chainIndex === 0 ? 0.8 : 0.25));
   }
 
-  private append(tone: JournalEntry["tone"], title: string, body: string) {
-    this.state.archive.push({ tick: this.state.tick, tone, title, body });
+  private commitPendingConfiguration() {
+    const pending = this.state.configuration.pending;
+    if (!pending) return;
+    delete this.state.configuration.pending;
+    if (pending.staleAtTick !== this.state.tick || pending.status !== "valid" || !findConfiguration(pending.selectionId, pending.channel)) return;
+    if (pending.channel === "firmware") this.state.configuration.firmwareId = pending.selectionId;
+    if (pending.channel === "sensor") this.state.configuration.sensorModifierId = pending.selectionId;
+    if (pending.channel === "route") this.state.configuration.routeModifierId = pending.selectionId;
+    this.state.configuration.log.push({ tick: this.state.tick, id: pending.selectionId, title: pending.title });
+    this.append("configuration", pending.title, `${pending.effect}; цена: ${pending.tradeoff}.`);
   }
 
-  private persist() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* Local-first save remains optional in restrictive browser contexts. */ }
-  }
+  private append(tone: JournalEntry["tone"], title: string, body: string) { this.state.archive.push({ tick: this.state.tick, tone, title, body }); }
+
+  private persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* Local-first save remains optional in restrictive browser contexts. */ } }
 
   private restore() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const restored = JSON.parse(raw) as GameState;
-      if (typeof restored.tick === "number" && typeof restored.chainIndex === "number" && Array.isArray(restored.archive)) this.state = restored;
+      if (typeof restored.tick === "number" && typeof restored.chainIndex === "number" && Array.isArray(restored.archive)) {
+        const legacyConfiguration = restored.configuration ?? newConfiguration();
+        this.state = { ...restored, configuration: { ...newConfiguration(), ...legacyConfiguration, log: Array.isArray(legacyConfiguration.log) ? legacyConfiguration.log : [] } };
+      }
     } catch { /* Corrupt local data safely falls back to a new day. */ }
   }
 }

@@ -56,4 +56,42 @@ describe("ThermostatSimulation", () => {
     expect(recovered.snapshot().tick).toBe(0);
     expect(recovered.snapshot().started).toBe(false);
   });
+
+  it("previews configuration without mutation and commits a valid selection on the next fixed tick", () => {
+    const simulation = new ThermostatSimulation();
+    const before = simulation.snapshot();
+    const preview = simulation.previewConfiguration("firmware.air_first", "firmware");
+    expect(preview.status).toBe("valid");
+    expect(simulation.snapshot().configuration.firmwareId).toBe(before.configuration.firmwareId);
+    expect(simulation.queueConfiguration(preview)).toBe(true);
+    expect(simulation.snapshot().configuration.firmwareId).toBe("firmware.surface_memory");
+    simulation.start();
+    advanceTicks(simulation, 1);
+    const committed = simulation.snapshot();
+    expect(committed.configuration.firmwareId).toBe("firmware.air_first");
+    expect(committed.configuration.log.at(-1)?.id).toBe("firmware.air_first");
+    expect(committed.archive.at(-1)?.tone).toBe("configuration");
+  });
+
+  it("blocks unknown configuration and restores a committed configuration from local save", () => {
+    const simulation = new ThermostatSimulation();
+    const unknown = simulation.previewConfiguration("firmware.unknown", "firmware");
+    expect(unknown.status).toBe("blocked");
+    expect(simulation.queueConfiguration(unknown)).toBe(false);
+    const preview = simulation.previewConfiguration("modifier.direct_boost", "route");
+    simulation.queueConfiguration(preview);
+    simulation.start();
+    advanceTicks(simulation, 1);
+    const restored = new ThermostatSimulation();
+    expect(restored.snapshot().configuration.routeModifierId).toBe("modifier.direct_boost");
+  });
+
+  it("rejects a stale preview without changing the active configuration", () => {
+    const simulation = new ThermostatSimulation();
+    const preview = simulation.previewConfiguration("firmware.air_first", "firmware");
+    simulation.start();
+    advanceTicks(simulation, 1);
+    expect(simulation.queueConfiguration(preview)).toBe(false);
+    expect(simulation.snapshot().configuration.firmwareId).toBe("firmware.surface_memory");
+  });
 });

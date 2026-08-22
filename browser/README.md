@@ -20,6 +20,8 @@ pnpm build
 
 Игрок начинает наблюдение, получает два видимых предвестника, выбирает один из двух маршрутов, читает последствия в Archive и проходит три цепочки: «Порог Аркадия», «Серебряный коридор» и «Ночной возврат». Даже прямой маршрут продолжает день через material service trace: в игре нет hard game-over, obedience score или управления жильцами.
 
+В configuration sheet (`C`) доступны три firmware, два sensor modifier и два route modifier. Карточка сперва показывает effect и price; затем выбранный typed preview становится в очередь и только на следующем fixed tick попадает в local-first state. См. [`FIRMWARE_MODIFIERS.md`](FIRMWARE_MODIFIERS.md).
+
 | Слой | Технология | Ответственность |
 |---|---|---|
 | Browser shell | React + TypeScript | HTML controls, onboarding, Journal, keyboard accessibility, preferences. |

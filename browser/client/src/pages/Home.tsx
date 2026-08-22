@@ -1,9 +1,10 @@
 // Design: Тихая технография — лента наблюдений слева, материальный cutaway справа, честные маршруты у нижнего края.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, Sparkles, Type, X } from "lucide-react";
+import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Type, X } from "lucide-react";
 import { PhaserThermostat } from "@/components/PhaserThermostat";
+import { entriesFor } from "@/game/ConfigurationCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
-import type { GameState, RouteKind } from "@/game/types";
+import type { ConfigurationChannel, ConfigurationPreview, GameState, RouteKind } from "@/game/types";
 
 const LOGO = "/manus-storage/thermostat-route-mark_4292ba1f.png";
 const JOURNAL = "/manus-storage/thermostat-journal-backdrop_cb648cce.png";
@@ -26,12 +27,20 @@ const meters = [
   { key: "branch", name: "ВЕТВЬ 26", pattern: "| |" }
 ] as const;
 
+const configurationSections: Array<{ channel: ConfigurationChannel; label: string; note: string }> = [
+  { channel: "firmware", label: "FIRMWARE", note: "Что выходит на первый план в наблюдении." },
+  { channel: "sensor", label: "SENSOR MODIFIER", note: "Как материальный след получает форму и узор." },
+  { channel: "route", label: "ROUTE MODIFIER", note: "Как ограничивается или усиливается только прямой маршрут." }
+];
+
 export default function Home() {
   const simulation = useMemo(() => new ThermostatSimulation(), []);
   const [state, setState] = useState<GameState>(() => simulation.snapshot());
   const [profile, setProfile] = useState<Profile>(loadProfile);
   const [journalOpen, setJournalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [configurationOpen, setConfigurationOpen] = useState(false);
+  const [configurationPreview, setConfigurationPreview] = useState<ConfigurationPreview | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const receiveState = useCallback((next: GameState) => setState(next), []);
@@ -48,7 +57,8 @@ export default function Home() {
       if (event.key.toLowerCase() === "j") setJournalOpen((value) => !value);
       if (event.key.toLowerCase() === "m") setProfile((value) => ({ ...value, reducedMotion: !value.reducedMotion }));
       if (event.key.toLowerCase() === "l") setProfile((value) => ({ ...value, lowSensory: !value.lowSensory }));
-      if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setHelpOpen(false); }
+      if (event.key.toLowerCase() === "c") setConfigurationOpen((value) => !value);
+      if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setConfigurationOpen(false); setHelpOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -57,6 +67,11 @@ export default function Home() {
   const begin = () => { simulation.start(); refresh(); };
   const choose = (route: RouteKind) => { simulation.chooseRoute(route); refresh(); };
   const restart = () => { simulation.reset(); refresh(); setJournalOpen(false); };
+  const inspectConfiguration = (id: string, channel: ConfigurationChannel) => setConfigurationPreview(simulation.previewConfiguration(id, channel));
+  const commitConfiguration = () => {
+    if (!configurationPreview) return;
+    if (simulation.queueConfiguration(configurationPreview)) refresh();
+  };
 
   return (
     <main className={`thermostat-shell ${profile.lowSensory ? "low-sensory" : ""} ${profile.reducedMotion ? "reduce-motion" : ""}`} style={{ fontSize: `${profile.textScale}em` }}>
@@ -72,6 +87,7 @@ export default function Home() {
           </button>
           <div className="top-actions">
             <button className="icon-button" onClick={() => setJournalOpen(true)} aria-label="Открыть журнал"><Archive size={18} /><span>J</span></button>
+            <button className="icon-button" onClick={() => setConfigurationOpen(true)} aria-label="Открыть firmware и modifiers"><SlidersHorizontal size={18} /><span>C</span></button>
             <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Открыть настройки доступности"><Settings2 size={18} /></button>
           </div>
         </header>
@@ -128,6 +144,13 @@ export default function Home() {
         <ToggleRow icon={<Moon size={18} />} title="Low-sensory" description="Убирает несущественные motion и сохраняет все смыслы." active={profile.lowSensory} onClick={() => setProfile((value) => ({ ...value, lowSensory: !value.lowSensory }))} hotkey="L" />
         <ToggleRow icon={<Sparkles size={18} />} title="Reduced motion" description="Маршруты и изменения состояния становятся мгновенными." active={profile.reducedMotion} onClick={() => setProfile((value) => ({ ...value, reducedMotion: !value.reducedMotion }))} hotkey="M" />
         <div className="text-scale"><div><Type size={18} /><span><b>Размер текста</b><small>90–125% · сохраняется локально</small></span></div><input aria-label="Размер текста" type="range" min="0.9" max="1.25" step="0.05" value={profile.textScale} onChange={(event) => setProfile((value) => ({ ...value, textScale: Number(event.target.value) }))} /><b>{Math.round(profile.textScale * 100)}%</b></div>
+      </aside>}
+
+      {configurationOpen && <aside className="configuration-sheet" role="dialog" aria-modal="true" aria-label="Firmware и modifiers"><div className="sheet-top"><div><p className="eyebrow">БЕЗОПАСНАЯ КОНФИГУРАЦИЯ</p><h2>Контуры<br />наблюдения</h2></div><button className="icon-button" onClick={() => setConfigurationOpen(false)} aria-label="Закрыть конфигурацию"><X size={19} /></button></div>
+        <p className="configuration-intro">Сначала посмотри пользу и цену. Выбор попадёт в очередь и применится только на следующем тике; он не меняет людей или скрытые причины.</p>
+        {configurationSections.map((section) => <section className="configuration-section" key={section.channel}><div className="configuration-section-head"><b>{section.label}</b><small>{section.note}</small></div><div className="configuration-options">{entriesFor(section.channel).map((entry) => <button key={entry.id} className={`configuration-choice ${configurationPreview?.selectionId === entry.id ? "inspected" : ""}`} onClick={() => inspectConfiguration(entry.id, section.channel)} aria-pressed={configurationPreview?.selectionId === entry.id}><span className="configuration-node">◆</span><span><b>{entry.title}</b><small>{entry.effect}</small><em>цена: {entry.tradeoff}</em></span></button>)}</div></section>)}
+        <section className={`configuration-preview ${configurationPreview?.status ?? "empty"}`} aria-live="polite">{configurationPreview ? <><p className="eyebrow">{configurationPreview.status === "valid" ? "PREVIEW · НЕ МЕНЯЕТ ДЕНЬ" : configurationPreview.status === "selected" ? "УЖЕ АКТИВНО" : "ЗАБЛОКИРОВАНО"}</p><b>{configurationPreview.title}</b><p>{configurationPreview.effect}</p><p className="configuration-cost">Цена: {configurationPreview.tradeoff}</p>{configurationPreview.alternative && <p className="configuration-alternative">{configurationPreview.alternative}</p>}{configurationPreview.status === "valid" && <button className="primary-cta" onClick={commitConfiguration}>ПРИМЕНИТЬ НА СЛЕДУЮЩЕМ ТИКЕ</button>}</> : <p>Выбери элемент каталога — preview покажет результат до любого commit.</p>}</section>
+        {state.configuration.pending && <p className="configuration-pending">В очереди: {state.configuration.pending.title} · применится на тике {String(state.configuration.pending.staleAtTick).padStart(3, "0")}.</p>}
       </aside>}
 
       {helpOpen && <aside className="help-sheet" role="dialog" aria-modal="true" aria-label="Как играть"><button className="icon-button close-help" onClick={() => setHelpOpen(false)} aria-label="Закрыть помощь"><X size={19} /></button><CircleHelp size={30} /><h2>Как читать дом</h2><p>Жди два видимых предвестника, затем сравни пользу и цену двух маршрутов. Буквы, цвет и узор дублируют критический смысл.</p><dl><div><dt>Q</dt><dd>бережный маршрут</dd></div><div><dt>E</dt><dd>прямой маршрут</dd></div><div><dt>J</dt><dd>открыть Archive</dd></div><div><dt>L / M</dt><dd>low-sensory / motion</dd></div></dl></aside>}
