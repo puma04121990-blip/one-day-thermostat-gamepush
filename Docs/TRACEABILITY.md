@@ -20,6 +20,7 @@
 | Bounded configuration effect | `TuneReasons`, `ApplyRouteModifier`, player-facing summary | Core smoke: direct boost bounded effect | Максимум две причины и route value остаётся нормализованным. |
 | Governor not silent | `SafetyGovernor`, `PolicyPreviewDTO`, Policy Log | Unsafe pulse smoke test | UI displays reason+alternative. |
 | WebGL-safe presentation | `ThermostatShowcaseUI`, generated art, CPU snapshot flow | Unity WebGL smoke | No compute shader required. |
+| Localization/content authoring | `LocalizationCatalog`, `LocalizationProvider`, `ContentManifestAsset`, JSON contract | Core fallback/duplicate test + Node ru/en parity check | Missing text stays visible; content cannot inject commands or scripts. |
 | Explicit player start | `UnitySimulationDriver.StartSession`, onboarding overlay | Unity PlayMode start/skip pass | No tick or GameplayStart behind onboarding. |
 | Platform pause parity | `GamePlatformBootstrap` + `Time.deltaTime` driver | WebGL pause/resume pass | No authoritative tick advances under platform pause. |
 | Non-colour accessibility | Sensor atlas, captions, labels, low-sensory toggle | Manual accessibility run | Critical cue readable with caption only. |

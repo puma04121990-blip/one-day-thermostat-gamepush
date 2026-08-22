@@ -394,50 +394,50 @@ namespace OneDayThermostat.Presentation.UI
 
         private static string ConfigurationTitle(string key)
         {
-            return key == "firmware.surface_memory" ? "Surface Memory" : key == "firmware.air_first" ? "Air First" : key == "firmware.quiet_window" ? "Quiet Window" : key == "modifier.early_contour" ? "Ранний контур" : key == "modifier.moisture_stipple" ? "Серебряный стиппл" : key == "modifier.soft_open" ? "Мягкое открытие" : key == "modifier.direct_boost" ? "Прямой импульс" : key;
+            return LocalizationProvider.Resolve(key + ".title");
         }
 
         private static string ConfigurationEffect(string key)
         {
-            return key == "firmware.surface_memory.effect.surface_lag" ? "сначала поднимает след поверхности" : key == "firmware.surface_memory.cost.slower_response" ? "реакция маршрута медленнее" : key == "firmware.air_first.effect.air_foreground" ? "сначала поднимает воздух у порога" : key == "firmware.air_first.cost.moisture_less_prominent" ? "влага не получает приоритета" : key == "firmware.quiet_window.effect.rhythm_foreground" ? "сначала показывает тихое окно" : key == "firmware.quiet_window.cost.slower_route_switch" ? "переключение требует больше времени" : key == "modifier.early_contour.effect.surface_contour" ? "контур поверхности появляется раньше" : key == "modifier.early_contour.cost.more_surface_signals" ? "поверхностных сигналов больше" : key == "modifier.moisture_stipple.effect.moisture_stipple" ? "влага получает штриховой след" : key == "modifier.moisture_stipple.cost.air_signal_less_prominent" ? "воздушный сигнал менее заметен" : key == "modifier.soft_open.effect.cap_direct_open" ? "ограничивает прямое открытие" : key == "modifier.soft_open.cost.slower_threshold_recovery" ? "порог восстанавливается медленнее" : key == "modifier.direct_boost.effect.raise_direct_open" ? "поднимает прямой маршрут" : key == "modifier.direct_boost.cost.branch_resonance" ? "резонанс ветви 26 заметнее" : key == "configuration.already_selected" ? "эта конфигурация уже активна" : key == "configuration.unknown" ? "выбор не входит в каталог" : key == "configuration.alternative.select_known_firmware" || key == "configuration.alternative.select_known_modifier" ? "выберите запись из локального каталога" : key == "configuration.alternative.safe_content_only" ? "используйте безопасный data-driven content" : key;
+            return LocalizationProvider.Resolve(key);
         }
 
         private static string PolicyStatus(PolicyDecisionStatus status)
         {
-            return status == PolicyDecisionStatus.Valid ? "можно закрепить" : status == PolicyDecisionStatus.Blocked ? "Governor остановил" : status == PolicyDecisionStatus.Superseded ? "условие уже завершено" : "ожидает контекста";
+            return LocalizationProvider.Resolve(status == PolicyDecisionStatus.Valid ? "policy.status.valid" : status == PolicyDecisionStatus.Blocked ? "policy.status.blocked" : status == PolicyDecisionStatus.Superseded ? "policy.status.superseded" : "policy.status.suggested");
         }
 
         private static string CaptionFor(SimulationSnapshot snapshot, SensorMode sensor)
         {
-            if (snapshot.LowSensory) return snapshot.Event.ActiveChainId == "event.silver_corridor" ? "Подпись low-sensory: влага остаётся в кухонном контуре; дренаж меняет цену времени." : snapshot.Event.ActiveChainId == "event.blackout_return" ? "Подпись low-sensory: сеть возвращается по контурам; быстрый маршрут несёт второй пик." : "Подпись low-sensory: у порога холоднее, а маршрут меняет цену ветви и тихого окна.";
-            if (snapshot.Event.ActiveChainId == "event.silver_corridor") return sensor == SensorMode.Moisture ? "Подпись: серебряный след держится дольше температуры." : "Подпись: дренаж отмечает лишний удар; маршрут отделяет влагу от спешки.";
-            if (snapshot.Event.ActiveChainId == "event.blackout_return") return sensor == SensorMode.Network ? "Подпись: сетевой ритм вернулся; контуры просят порядка." : "Подпись: поверхность держит резерв, пока сеть не возвращается целиком.";
-            return sensor == SensorMode.Heat ? "Подпись: холод входит через порог; янтарный поток отвечает из нижнего стояка." : sensor == SensorMode.Air ? "Подпись: стрелки показывают направление, а не силу в цифрах." : sensor == SensorMode.Vibration ? "Подпись: сегменты ветви 26 предупреждают о старте и остановке." : sensor == SensorMode.Moisture ? "Подпись: серебряный след держится дольше температуры." : sensor == SensorMode.Network ? "Подпись: сеть показывает очередь, не состояние людей." : "Подпись: поверхность помнит свет и холод дольше воздуха.";
+            if (snapshot.LowSensory) return LocalizationProvider.Resolve(snapshot.Event.ActiveChainId == "event.silver_corridor" ? "caption.low_sensory.silver" : snapshot.Event.ActiveChainId == "event.blackout_return" ? "caption.low_sensory.blackout" : "caption.low_sensory.threshold");
+            if (snapshot.Event.ActiveChainId == "event.silver_corridor") return LocalizationProvider.Resolve(sensor == SensorMode.Moisture ? "caption.moisture_remains_after_temperature" : "caption.drain_marks_an_extra_beat");
+            if (snapshot.Event.ActiveChainId == "event.blackout_return") return LocalizationProvider.Resolve(sensor == SensorMode.Network ? "caption.network_rhythm_falls_away" : "caption.west_wall_keeps_day_heat");
+            return LocalizationProvider.Resolve(sensor == SensorMode.Heat ? "caption.cold_rises_from_entrance" : sensor == SensorMode.Air ? "caption.riser_tone_shifts" : sensor == SensorMode.Vibration ? "caption.branch_clicks_out_of_pair" : sensor == SensorMode.Moisture ? "caption.moisture_remains_after_temperature" : sensor == SensorMode.Network ? "reason.network_queue" : "caption.west_wall_keeps_day_heat");
         }
 
         private static string LocalizeReason(string key)
         {
-            return key == "reason.external_air_at_threshold" ? "у порога внешний воздух" : key == "reason.start_stop" ? "ветвь 26 часто стартует и останавливается" : key == "reason.quiet_window" ? "маршрут пересекает тихое окно" : key == "reason.temperature_delta" ? "перепад между стояком и порогом" : key == "reason.moisture_residual" ? "влага не ушла из контура" : key == "governor.protective_lockout" ? "защитный режим компонента" : key;
+            return LocalizationProvider.Resolve(key);
         }
 
         private static string ServiceLabel(string key)
         {
-            return key == "cost.branch_26_resonance" ? "ветвь 26 просит окно восстановления" : key == "cost.kitchen_queue" ? "дренаж сохраняет очередь" : key == "cost.second_network_peak" ? "сеть сохранила второй пик" : key == "service.action.balance_branch" ? "сбалансировать ветвь" : key == "service.action.clear_drain_window" ? "очистить окно дренажа" : key == "service.action.stage_network_return" ? "вернуть сеть по этапам" : key == "component.branch_26" ? "ветвь 26" : key == "component.kitchen_drain" ? "кухонный дренаж" : key == "component.network_main" ? "главная сеть" : key;
+            return LocalizationProvider.Resolve(key);
         }
 
         private static string ReviewLabel(string key)
         {
-            return key == "review.day.stewardship_complete" ? "контуры собраны без открытых service follow-up" : key == "review.day.service_follow_up_open" ? "дом закончил день с открытым материальным обслуживанием" : key;
+            return LocalizationProvider.Resolve(key);
         }
 
         private static string ArchiveLabel(string key)
         {
-            return key == "archive.first_flow" ? "первый поток" : key == "archive.threshold_route" ? "порог" : key == "archive.quiet_route" ? "тихий маршрут" : key == "archive.silver_corridor" ? "серебряный коридор" : key == "archive.staged_return" ? "поэтапный возврат" : key == "archive.day_complete" ? "день собран" : key == "archive.service_follow_up" ? "сервисный след" : key == "archive.end_of_day_review" ? "обзор дня" : key == "service.outcome.branch_rebalanced" ? "ветвь сбалансирована" : key == "service.outcome.drain_window_cleared" ? "окно дренажа очищено" : key == "service.outcome.network_return_staged" ? "возврат сети собран" : key;
+            return LocalizationProvider.Resolve(key);
         }
 
         private static string OutcomeLabel(string key)
         {
-            return key == "cost.branch_26_resonance" ? "ветви 26 понадобится окно восстановления" : key == "cost.kitchen_queue" ? "кухонный контур сохранил очередь" : key == "cost.second_network_peak" ? "сеть оставила след второго пика" : key == "baseline.day_complete" ? "дом получил восстанавливаемый ночной baseline" : ArchiveLabel(key);
+            return LocalizationProvider.Resolve(key);
         }
 
         private static void EnsureEventSystem()

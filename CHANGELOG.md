@@ -13,6 +13,7 @@
 - Корректная остановка fixed-tick симуляции при platform pause.
 - Whitelist-каталог firmware/modifiers, typed preview/commit, ограниченный route effect и player-facing configuration summary.
 - Archive/service follow-up: материальные последствия, безопасное обслуживание компонента, end-of-day review и save round-trip service state.
+- Typed ru-RU/en-US localization catalog, runtime fallback, semantic content manifest и CI-проверка JSON parity/Resources sync.
 
 ### Planned
 
