@@ -1,6 +1,6 @@
 // Design: Тихая технография — лента наблюдений слева, материальный cutaway справа, честные маршруты у нижнего края.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Type, X } from "lucide-react";
+import { Archive, AudioLines, ChevronDown, CircleHelp, Gauge, Moon, RotateCcw, Settings2, SlidersHorizontal, Sparkles, Type, Wrench, X } from "lucide-react";
 import { PhaserThermostat } from "@/components/PhaserThermostat";
 import { entriesFor } from "@/game/ConfigurationCatalog";
 import { ThermostatSimulation } from "@/game/ThermostatSimulation";
@@ -41,6 +41,7 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [configurationOpen, setConfigurationOpen] = useState(false);
   const [configurationPreview, setConfigurationPreview] = useState<ConfigurationPreview | null>(null);
+  const [serviceOpen, setServiceOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const receiveState = useCallback((next: GameState) => setState(next), []);
@@ -58,7 +59,8 @@ export default function Home() {
       if (event.key.toLowerCase() === "m") setProfile((value) => ({ ...value, reducedMotion: !value.reducedMotion }));
       if (event.key.toLowerCase() === "l") setProfile((value) => ({ ...value, lowSensory: !value.lowSensory }));
       if (event.key.toLowerCase() === "c") setConfigurationOpen((value) => !value);
-      if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setConfigurationOpen(false); setHelpOpen(false); }
+      if (event.key.toLowerCase() === "v") setServiceOpen((value) => !value);
+      if (event.key === "Escape") { setJournalOpen(false); setSettingsOpen(false); setConfigurationOpen(false); setServiceOpen(false); setHelpOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -72,6 +74,8 @@ export default function Home() {
     if (!configurationPreview) return;
     if (simulation.queueConfiguration(configurationPreview)) refresh();
   };
+  const recoverService = (taskId: string) => { if (simulation.queueServiceRecovery(taskId)) refresh(); };
+  const openServiceTasks = state.service.tasks.filter((task) => !task.resolved);
 
   return (
     <main className={`thermostat-shell ${profile.lowSensory ? "low-sensory" : ""} ${profile.reducedMotion ? "reduce-motion" : ""}`} style={{ fontSize: `${profile.textScale}em` }}>
@@ -88,6 +92,7 @@ export default function Home() {
           <div className="top-actions">
             <button className="icon-button" onClick={() => setJournalOpen(true)} aria-label="Открыть журнал"><Archive size={18} /><span>J</span></button>
             <button className="icon-button" onClick={() => setConfigurationOpen(true)} aria-label="Открыть firmware и modifiers"><SlidersHorizontal size={18} /><span>C</span></button>
+            <button className="icon-button" onClick={() => setServiceOpen(true)} aria-label="Открыть сервис и обзор дня"><Wrench size={17} /><span>V</span></button>
             <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Открыть настройки доступности"><Settings2 size={18} /></button>
           </div>
         </header>
@@ -153,7 +158,14 @@ export default function Home() {
         {state.configuration.pending && <p className="configuration-pending">В очереди: {state.configuration.pending.title} · применится на тике {String(state.configuration.pending.staleAtTick).padStart(3, "0")}.</p>}
       </aside>}
 
-      {helpOpen && <aside className="help-sheet" role="dialog" aria-modal="true" aria-label="Как играть"><button className="icon-button close-help" onClick={() => setHelpOpen(false)} aria-label="Закрыть помощь"><X size={19} /></button><CircleHelp size={30} /><h2>Как читать дом</h2><p>Жди два видимых предвестника, затем сравни пользу и цену двух маршрутов. Буквы, цвет и узор дублируют критический смысл.</p><dl><div><dt>Q</dt><dd>бережный маршрут</dd></div><div><dt>E</dt><dd>прямой маршрут</dd></div><div><dt>J</dt><dd>открыть Archive</dd></div><div><dt>L / M</dt><dd>low-sensory / motion</dd></div></dl></aside>}
+      {serviceOpen && <aside className="service-sheet" role="dialog" aria-modal="true" aria-label="Сервис и обзор дня"><div className="sheet-top"><div><p className="eyebrow">МАТЕРИАЛЬНЫЕ FOLLOW-UPS</p><h2>Сервис<br />и обзор</h2></div><button className="icon-button" onClick={() => setServiceOpen(false)} aria-label="Закрыть сервис"><X size={19} /></button></div>
+        <p className="service-intro">Каждая задача относится к видимому компоненту дома. Обслуживание ставится в очередь и получает bounded recovery на следующем тике.</p>
+        <div className="service-list">{state.service.tasks.length ? state.service.tasks.map((task) => <article className={`service-task ${task.resolved ? "resolved" : "open"}`} key={task.id}><p className="eyebrow">{task.componentId.replace("component.", "КОМПОНЕНТ / ")}</p><h3>{task.trace}</h3><p>{task.action}</p>{task.resolved ? <p className="service-outcome">◆ {task.outcome}</p> : <button className="primary-cta" onClick={() => recoverService(task.id)} disabled={Boolean(state.service.pendingTaskId)}>ОБСЛУЖИТЬ НА СЛЕДУЮЩЕМ ТИКЕ</button>}</article>) : <p className="empty-note">Открытых задач пока нет. Бережный маршрут может завершить день без service follow-up.</p>}</div>
+        {state.service.pendingTaskId && <p className="configuration-pending">ОБСЛУЖИВАНИЕ В ОЧЕРЕДИ · следующий fixed tick применит bounded recovery.</p>}
+        {state.service.review.available && <section className="day-review"><p className="eyebrow">ОБЗОР ДНЯ</p><b>{state.service.review.key === "review.day.stewardship_complete" ? "Восстановление собрано" : "Открытые следы остаются видимыми"}</b><p>{state.service.review.text}</p><small>Service credits: {state.service.credits}. Это запись о компонентах, а не рейтинг игрока.</small></section>}
+      </aside>}
+
+      {helpOpen && <aside className="help-sheet" role="dialog" aria-modal="true" aria-label="Как играть"><button className="icon-button close-help" onClick={() => setHelpOpen(false)} aria-label="Закрыть помощь"><X size={19} /></button><CircleHelp size={30} /><h2>Как читать дом</h2><p>Жди два видимых предвестника, затем сравни пользу и цену двух маршрутов. Буквы, цвет и узор дублируют критический смысл.</p><dl><div><dt>Q</dt><dd>бережный маршрут</dd></div><div><dt>E</dt><dd>прямой маршрут</dd></div><div><dt>J / C</dt><dd>Archive / configuration</dd></div><div><dt>V</dt><dd>сервис и обзор дня</dd></div><div><dt>L / M</dt><dd>low-sensory / motion</dd></div></dl></aside>}
     </main>
   );
 }

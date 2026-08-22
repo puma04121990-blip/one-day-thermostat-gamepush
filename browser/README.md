@@ -22,6 +22,8 @@ pnpm build
 
 В configuration sheet (`C`) доступны три firmware, два sensor modifier и два route modifier. Карточка сперва показывает effect и price; затем выбранный typed preview становится в очередь и только на следующем fixed tick попадает в local-first state. См. [`FIRMWARE_MODIFIERS.md`](FIRMWARE_MODIFIERS.md).
 
+В service sheet (`V`) прямой маршрут может открыть материальную задачу обслуживания. Она касается только компонента дома, применяется bounded recovery на следующем fixed tick и не превращает день в hard fail. См. [`SERVICE_FOLLOW_UP.md`](SERVICE_FOLLOW_UP.md).
+
 | Слой | Технология | Ответственность |
 |---|---|---|
 | Browser shell | React + TypeScript | HTML controls, onboarding, Journal, keyboard accessibility, preferences. |
