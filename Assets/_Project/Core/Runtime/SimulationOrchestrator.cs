@@ -13,6 +13,7 @@ namespace OneDayThermostat.Core
         private readonly ComponentStressSystem _stress = new ComponentStressSystem();
         private readonly ResidentRhythmSystem _residents = new ResidentRhythmSystem();
         private readonly EventDirector _events = new EventDirector();
+        private readonly ServiceFollowUpSystem _service = new ServiceFollowUpSystem();
         private readonly DiagnosticReasoning _diagnostics = new DiagnosticReasoning();
         private readonly AutomationEvaluator _automation = new AutomationEvaluator(new SafetyGovernor());
         private readonly FirmwareModifierCatalog _configuration = new FirmwareModifierCatalog();
@@ -61,6 +62,7 @@ namespace OneDayThermostat.Core
             _stress.Step(world, TickSeconds);
             _residents.Step(world, TickSeconds);
             _events.Step(world, TickSeconds);
+            _service.Step(world, TickSeconds);
             EvaluateAndQueuePolicy(world);
             CommitCommands(world);
             _diagnostics.Update(world, _configuration);
@@ -131,6 +133,9 @@ namespace OneDayThermostat.Core
                             component.RecoveryProgress = Clamp01(component.RecoveryProgress + .18f);
                         }
                         break;
+                    case CommandKind.CompleteServiceFollowUp:
+                        _service.Complete(world, adjusted.TargetId);
+                        break;
                     case CommandKind.CommitPolicy:
                         world.Policy.ActiveRuleId = adjusted.TargetId;
                         world.Policy.ActiveRuleEnabled = true;
@@ -167,7 +172,7 @@ namespace OneDayThermostat.Core
 
         private static int Priority(CommandKind kind)
         {
-            return kind == CommandKind.Isolate ? 0 : kind == CommandKind.Recover ? 1 : kind == CommandKind.SetRoute ? 2 : kind == CommandKind.Pulse ? 3 : kind == CommandKind.SelectFirmware || kind == CommandKind.SelectSensorModifier || kind == CommandKind.SelectRouteModifier ? 4 : 5;
+            return kind == CommandKind.Isolate ? 0 : kind == CommandKind.Recover || kind == CommandKind.CompleteServiceFollowUp ? 1 : kind == CommandKind.SetRoute ? 2 : kind == CommandKind.Pulse ? 3 : kind == CommandKind.SelectFirmware || kind == CommandKind.SelectSensorModifier || kind == CommandKind.SelectRouteModifier ? 4 : 5;
         }
 
         private static float Clamp01(float value) => Math.Max(0f, Math.Min(1f, value));

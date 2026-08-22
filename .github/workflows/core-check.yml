@@ -35,6 +35,7 @@ jobs:
             Assets/_Project/Core/Runtime/SimulationOrchestrator.cs \
             Assets/_Project/Core/Runtime/SaveContract.cs \
             Assets/_Project/Gameplay/Climate/AuthoritativeSystems.cs \
+            Assets/_Project/Gameplay/Climate/ServiceFollowUpSystem.cs \
             Assets/_Project/Gameplay/Automation/AutomationAndDiagnostics.cs \
             Assets/_Project/Gameplay/Automation/FirmwareModifierCatalog.cs \
             Assets/_Project/Content/Runtime/ScenarioDefinitions.cs \
