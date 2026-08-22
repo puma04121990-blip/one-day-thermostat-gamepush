@@ -100,6 +100,15 @@ export class ThermostatScene extends Phaser.Scene {
       g.fillStyle(index === state.chainIndex + 1 ? 0xf6d18b : routeColor, 0.94);
       g.fillRect(point.x - 4, point.y - 4, 8, 8);
     });
+    if (state.event.state === "foreshadow" || state.event.state === "warning" || state.event.state === "active") {
+      const alpha = state.event.state === "foreshadow" ? 0.44 : 0.78;
+      g.lineStyle(2, 0xe1a657, alpha);
+      g.strokeRoundedRect(width * 0.38, height * 0.18, width * 0.25, height * 0.3, 6);
+      for (let line = 0; line < 5; line += 1) g.lineBetween(width * 0.39 + line * 18, height * 0.49, width * 0.43 + line * 18, height * 0.46);
+      const eventLabel = this.add.text(width * 0.51, height * 0.17, state.event.state === "warning" ? "ВЕТВЬ 26 / SAFE ISOLATE" : "ВЕТВЬ 26 / ПРЕДВЕСТНИК", { fontFamily: "IBM Plex Mono", fontSize: "10px", color: "#F0C47A", stroke: "#09121D", strokeThickness: 3 });
+      eventLabel.setOrigin(.5);
+      this.labelLayer?.add(eventLabel);
+    }
     const meterData = [state.metrics.air, state.metrics.moisture, state.metrics.surface, state.metrics.branch];
     meterData.forEach((value, index) => {
       const x = width * 0.05 + index * 26;
@@ -110,6 +119,11 @@ export class ThermostatScene extends Phaser.Scene {
     if (!this.reducedMotion && state.phase === "prologue") {
       const pulse = 0.12 + Math.sin(state.tick * 0.55) * 0.04;
       g.fillStyle(0xc8834a, pulse).fillCircle(width * 0.5, height * 0.64, 26);
+    }
+    if (state.tutorial.current !== "complete") {
+      const tutorialLabel = this.add.text(width * 0.54, height * 0.83, `УЧИТЬСЯ: ${state.tutorial.current.replace("_", " ").toUpperCase()}`, { fontFamily: "IBM Plex Mono", fontSize: "9px", color: "#A9CAC0", stroke: "#09121D", strokeThickness: 3 });
+      tutorialLabel.setOrigin(.5);
+      this.labelLayer?.add(tutorialLabel);
     }
     this.onState(state);
   }

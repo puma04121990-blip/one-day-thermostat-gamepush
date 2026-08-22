@@ -31,7 +31,7 @@ export interface UnlockedAchievement { id: string; unlockedTick: number; }
 export interface AchievementState { unlocked: UnlockedAchievement[]; pendingPlatformTags: string[]; }
 
 export interface RouteOption { id: RouteKind; title: string; label: string; benefit: string; cost: string; keyHint: string; }
-export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service" | "achievement" | "policy"; }
+export interface JournalEntry { tick: number; title: string; body: string; tone: "trace" | "route" | "archive" | "configuration" | "service" | "achievement" | "policy" | "event" | "tutorial" | "stewardship" | "feedback"; }
 export interface SensorReading { source: string; change: string; causes: string[]; forecast: string; caption: string; }
 export interface DiagnosticState { layer: SensorLayer; source: string; change: string; causes: string[]; forecast: string; status: DiagnosticStatus; caption: string; }
 export interface ResidentBoundaryCard { id: string; materialSignature: string; context: string; adaptation: string; playerScope: string; never: string; }
@@ -42,6 +42,20 @@ export interface PolicyPreview { status: "valid" | "blocked" | "selected"; polic
 export interface ActivePolicy { id: string; startedTick: number; untilTick: number; }
 export interface PolicyState { active: ActivePolicy[]; pending?: PolicyPreview; log: Array<{ tick: number; id: string; title: string; state: "active" | "ended" | "blocked" }>; }
 
+export type ClimateEventState = "dormant" | "foreshadow" | "warning" | "active" | "stabilized" | "aftermath";
+export type EmergencyAction = "safe" | "direct";
+export interface ClimateEventDefinition { id: string; familyId: string; title: string; scenarioId: string; foreshadows: [string, string]; reason: string; safe: RouteOption; direct: RouteOption; safeOutcome: string; directOutcome: string; cooldownTicks: number; }
+export interface ClimateEventInstance { id: string; familyId: string; seed: number; state: ClimateEventState; startedTick?: number; foreshadowsObserved: string[]; selectedAction?: EmergencyAction; cooldownUntilTick: number; blockedReason?: string; }
+
+export type TutorialBeatId = "observe_heat" | "read_vibration" | "compare_routes" | "remember_consequence" | "complete";
+export interface TutorialState { current: TutorialBeatId; completed: TutorialBeatId[]; hintsShown: TutorialBeatId[]; }
+export interface StewardshipRecognition { id: string; tick: number; title: string; reason: string; }
+export interface StewardshipState { recognitions: StewardshipRecognition[]; repeatGate: string[]; }
+export type FeedbackConsent = "undecided" | "accepted" | "declined";
+export type FeedbackTopic = "cause" | "cost" | "accessibility";
+export interface LocalFeedbackEntry { tick: number; topic: FeedbackTopic; understanding: "clear" | "unclear"; }
+export interface LocalFeedbackState { consent: FeedbackConsent; entries: LocalFeedbackEntry[]; }
+
 export interface GameState {
   schemaVersion: number;
   contentVersion: string;
@@ -49,6 +63,7 @@ export interface GameState {
   phase: EventPhase;
   chainIndex: number;
   tick: number;
+  scenarioSeed: number;
   chainTitle: string;
   trace: string;
   caption: string;
@@ -64,5 +79,9 @@ export interface GameState {
   scenario: ScenarioState;
   boundaries: ResidentBoundaryCard[];
   policy: PolicyState;
+  event: ClimateEventInstance;
+  tutorial: TutorialState;
+  stewardship: StewardshipState;
+  feedback: LocalFeedbackState;
   dayComplete: boolean;
 }

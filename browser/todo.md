@@ -6,11 +6,22 @@
 - [x] Produce a traceability matrix that classifies requirements as implemented, browser-adapted, deferred, external-platform dependent or contradictory.
 - [x] Update the browser-first canon/decision log where Unity-only source instructions must be adapted without changing player-facing principles.
 - [x] Implement the highest-priority missing playable content systems with deterministic fixed-tick state, local-first saves and accessible HTML controls.
-- [ ] Add authored tutorial, crisis, resident-boundary and replayability content only where it fits the browser vertical slice without fabricating player data.
-- [ ] Add regression coverage for each new authoritative state transition, migration path and content fallback.
-- [ ] Prepare a concise, evidence-based publisher/investor presentation from the implemented browser state and supplied pitch sources.
-- [ ] Generate the requested presentation deliverables only after the content outline and claims are verified.
+- [x] Add authored browser tutorial beats, A-01 crisis, resident-boundary context and local stewardship traces without fabricating player data.
+- [ ] Add blackout/reserve and replayability content only after their complete browser-safe state contracts are defined.
+- [x] Add regression coverage for each new authoritative state transition, migration path and content fallback in the current tranche.
+- [x] Prepare a concise, evidence-based publisher/investor presentation from the implemented browser state and supplied pitch sources.
+- [x] Generate the requested presentation deliverables only after the content outline and claims are verified.
 - [ ] Run local tests, browser checks, protected GitHub PR CI, merge and checkpoint the integrated project.
+
+## Second-pass Master Development Bible audit and completion tranche
+
+- [x] Extract every normative statement, acceptance criterion, data contract and explicit non-goal from all 68 appendices into an atomic source-to-requirement register.
+- [x] Reconcile every source requirement against browser code, tests, assets, presentation claims and the existing Decision Log; record conflicts rather than silently adapting them.
+- [x] Define a complete browser-first acceptance scope that preserves Canon while distinguishing Unity-only rendering, external-platform dependencies and future production work.
+- [x] Implement deterministic Event Director, A-01 crisis, progressive tutorial beats, stewardship recognition and consent-first local feedback as the next tested browser tranche.
+- [ ] Add blackout/reserve, deterministic replay, full assistive-technology and physical-device tests for the remaining canonical systems.
+- [x] Refresh traceability, performance record, publisher outline and presentation assets from verified implementation facts only.
+- [ ] Complete local validation, visual review, protected GitHub PR CI, rebase merge and WebDev checkpoint.
 
 - [x] Verify why `ThermostatScene.init()` does not receive `simulation` before `create()`.
 - [x] Start the scene only after Phaser boot and pass data through the supported scene lifecycle.

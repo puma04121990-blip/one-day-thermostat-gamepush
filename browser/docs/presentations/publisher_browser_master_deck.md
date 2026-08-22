@@ -18,9 +18,9 @@ Evidence label: **Canon + playable onboarding.**
 
 ## Slide 3 — Один диагностический ритм
 
-**Аномалия → два независимых предвестника → маршрут с ценой → отложенное наблюдение.**
+**Аномалия → два независимых предвестника → маршрут с ценой → recoverable baseline.**
 
-В browser build игрок видит две material foreshadows до того, как становятся доступны два маршрута. Любой route продолжает день; прямой путь может открыть видимую service-задачу вместо hard fail.
+В browser build typed Event Director хранит local seed, проверяет authored context, vibration-learning gate и cooldown. A-01 «Ветвь 26 просит тишины» показывает две material foreshadows, затем Safe-flow/Buffer или Quarantine/Shunt; любой путь продолжает день через видимый сервисный след вместо hard fail.
 
 Evidence label: **Playable now.**
 
@@ -62,7 +62,7 @@ Evidence label: **Playable now.**
 
 ## Slide 8 — Local-first technical proof
 
-React HTML controls создают constrained intents; pure TypeScript `ThermostatSimulation` владеет 5 Hz fixed-tick state; Phaser Canvas только визуализирует snapshot. Сохранения мигрируют по `schemaVersion`/`contentVersion`; unknown authored IDs получают safe fallback, future schema отклоняется.
+React HTML controls создают constrained intents; pure TypeScript `ThermostatSimulation` владеет 5 Hz fixed-tick state; Phaser Canvas только визуализирует snapshot. Schema 4 сохраняет deterministic seed, event/tutorial/stewardship/feedback state; unknown authored IDs получают safe fallback, future schema отклоняется.
 
 Initial browser shell lazy-loads Phaser only after explicit start. Current build keeps the initial shell separate from the deferred Phaser engine; heavy cutaway is a 141 KB WebP loaded after start.
 
@@ -70,7 +70,7 @@ Evidence label: **Playable now; GamePush client remains intentionally inactive w
 
 ## Slide 9 — Production horizon, stated honestly
 
-Следующая авторская tranche: blackout/reserve scenario, Oleg/Nina content, regional climate profiles, policy/Charter expansion, adaptive audio and consent-first playtest workflow.
+Следующая авторская tranche: blackout/reserve scenario, Oleg/Nina content, regional climate profiles, policy/Charter expansion и adaptive audio. Consent-first playtest workflow уже существует локально: игрок добровольно сохраняет анонимные отметки cause/cost/accessibility и вручную экспортирует JSON; сетевой dispatch отсутствует.
 
 Full PC/console production, long-form endings, market metrics и external platform activation — **production targets**, not claims of the current browser demo.
 
