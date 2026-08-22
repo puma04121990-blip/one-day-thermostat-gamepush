@@ -34,6 +34,14 @@
 | Доступность | Выполнить Unity device/layout matrix для keyboard/controller/touch, `85–135%` текста и persistent profile. |
 | WebGL lifecycle | В GamePush test project подтвердить pause overlay, отсутствие tick/catch-up при resume и restart persistence. |
 | Scenario authoring | В Unity создать и проверить inspector-authored Scenario/Scripted Day Fixture assets через Content Manifest и PlayMode evidence. |
+| Browser parity | Перенести remaining firmware/modifier catalog, service follow-up execution, content versioning и GamePush browser mirror без возврата Unity как player requirement. |
+
+### Browser Edition
+
+- Основной playable путь перенесён на Phaser `3.90.0` + React/TypeScript в `browser/`; игроку для запуска больше не нужны Unity Editor, Git или GamePush credentials.
+- Добавлен fixed-tick `ThermostatSimulation`, Phaser cutaway scene, local-first browser save, Archive, three-chain route flow, onboarding и доступный browser profile.
+- Browser-specific GitHub CI проверяет `pnpm check` и `pnpm build` при изменениях в `browser/`.
+- Unity 6 прототип сохранён как legacy reference до завершения document parity audit; он не объявляется обязательным для browser release.
 
 ## [0.1.0] — 2026-08-22
 
